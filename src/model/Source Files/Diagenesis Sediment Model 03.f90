@@ -25,7 +25,7 @@ MODULE SEDMODEL_LOCAL
     Real(8)    :: d1, d2, Depth, UctAvg, Wf, BetaD, Sum1, Sdfz
     Real(8)    :: rgha, rghapda, Caks, Srho, Capda, Yalinp, Value1
     Real(8)    :: SNetFlx, SSettle
-    Real       :: Dummy
+    Real(8)    :: Dummy
     Logical    :: BottomUpdated
     END MODULE
     

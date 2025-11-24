@@ -4,7 +4,7 @@ USE MAIN
 USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINETIC; USE SHADEC; USE EDDY
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
   USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC
-  Use CEMAVars; USE MetFileRegion, ONLY: WB_MetRegions,I_MetRegions,Met_Regions
+  Use CEMAVars; USE MetFileRegion
   IMPLICIT NONE
   EXTERNAL RESTART_OUTPUT
   
@@ -43,8 +43,7 @@ DO JW=1,NWB
                            IF(TAIR(NMet).GE.5.0)THEN
                            RANLW(NMet) = 5.31D-13*(273.15D0+TAIR(NMet))**6*(1.0D0+0.0017D0*CLOUD(NMet)*CLOUD(NMet))*0.97D0    ! SW 4/20/16 SPEED
                            ELSE
-                           !RANLW(NMet) = 5.62D-8*(273.15D0+TAIR(I_MetRegions(JW)))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(NMet)*TAIR(NMet)))*(1.0D0+0.0017D0*CLOUD(NMet)*CLOUD(NMet))*0.97D0     ! SW 4/20/16 SPEED
-                           RANLW(NMet) = 5.62D-8*(273.15D0+TAIR(NMet))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(NMet)*TAIR(NMet)))*(1.0D0+0.0017D0*CLOUD(NMet)*CLOUD(NMet))*0.97D0     ! SW 4/20/16 SPEED
+                           RANLW(NMet) = 5.62D-8*(273.15D0+TAIR(I_MetRegions(JW)))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(NMet)*TAIR(NMet)))*(1.0D0+0.0017D0*CLOUD(NMet)*CLOUD(NMet))*0.97D0     ! SW 4/20/16 SPEED
                            ENDIF
                         ENDIF
                       END IF

@@ -6,6 +6,7 @@
     Use SCREENC
     Use CEMAVars
     Use CEMASedimentDiagenesis, only: SD_T1         
+    Use MAIN, only: WARNING_OPEN
     
     ! Type declarations
     IMPLICIT NONE
@@ -100,10 +101,10 @@
             
         End Do !nGas
         
-        Radius = Radius + Porosity*GasDiff_Sed/(Radius*CgT)*(SourceT*CalibParam_R1**2/(6*GasDiff_Sed)+(C1T-C0T))*DeltaT
+        Radius = Radius + Porosity*GasDiff_Sed/(Radius*CgT)*(SourceT*CalibParam_R1**2/(6*GasDiff_Sed)+(C1T-C0T))*DeltaT      !m in output mutiplied by 1000 to get mm
             
         If(LimBubbSize)Then
-            If(Radius > MaxBubbRad/1000.0)Radius = MaxBubbRad/1000.0
+            If(Radius > MaxBubbRad/1000.0)Radius = MaxBubbRad/1000.0            ! MaxBubbRad input as mm
         End If
     
     End If
@@ -197,8 +198,9 @@
         End Do
         If(.NOT. FoundOpenArray)Then
             Write(CEMALogFilN,*)"Insufficient array size for bubbles release at JDAY = ", JDAY
-            Write(w2err,*)"Insufficient array size for bubbles release at JDAY = ", JDAY
-            Stop
+            Write(wrn,'(A,i10,a,f12.3,A)')"Sediment Diagenesis: Insufficient array size [NumBubRelArr=",NumBubRelArr,"] for bubbles release at JDAY = ", JDAY, " Run continued."
+            WARNING_OPEN=.TRUE. 
+            !Stop
         End if
     End If
     

@@ -57,8 +57,8 @@ ENTRY DOWNSTREAM_WITHDRAWAL (JS)
   END IF
   IF (ESTR(JS,JB) > EL(KT,ID)-ELR) ELSTR = WSEL
   IF (KBSW(JS,JB) < KSTR) THEN
-    KSTR  = KT
-    ELSTR = WSEL
+    KSTR  = KTOP          ! KT
+    ELSTR = EL(KTOP,ID)   !WSEL
   END IF
 
 ! Boundary interference
@@ -156,6 +156,14 @@ ENTRY DOWNSTREAM_WITHDRAWAL (JS)
   TAVG(JS,JB)=0.0                                                    ! CB 5/12/10
   IF(CONSTITUENTS)CAVG(JS,JB,CN(1:NAC))=0.0
   IF(DERIVED_CALC)CDAVG(JS,JB,CDN(1:NACD(JW),JW))=0.0
+  IF(VSUM==0.0)THEN
+      WRITE(WRN,'(A,F12.3,A,I5,A,I5,A,I5,A,E12.4,A)')'DOWNSTREAM WITHDRAWAL: VSUM=0.0 on JDAY:',JDAY,' KTOP:',KTOP,' KBOT:',KBOT,' KSTR:',KSTR,' DLRHOMAX:',DLRHOMAX,' SET TO EQUAL WITHDRAWALS WITH DEPTH'
+      VSUM=1.0
+      DO K=KTOP,KBOT
+      VNORM(K)=1.0/(KTOP-KBOT+1)
+      ENDDO
+  ENDIF
+  
   DO K=KTOP,KBOT
     QNEW(K)    = (VNORM(K)/VSUM)*QSTR(JS,JB)
     QOUT(K,JB) =  QOUT(K,JB)+QNEW(K)
@@ -645,17 +653,19 @@ ENTRY DOWNSTREAM_WITHDRAWAL_MULTI
           
   end do
 
-  QNEW = 0.0
+  !QNEW = 0.0
   DO jsn=1,NSTR(JB)
     IF (QSTR(jsn,JB) /= 0.0) THEN
     ! OUTFLOWS
       QSUMJS=0.0                                                  ! SW 7/30/09
-      TAVG(jsn,JB)=0.0                                                    ! CB 5/12/10
+      TAVG(jsn,JB)=0.0                                            ! CB 5/12/10
+      QNEW = 0.0                                                  !ZZ 9/19/24
       IF(CONSTITUENTS)CAVG(jsn,JB,CN(1:NAC))=0.0
       IF(DERIVED_CALC)CDAVG(jsn,JB,CDN(1:NACD(JW),JW))=0.0
       DO K=KTOPs(jsn),KBOTs(jsn)
         QNEW(K)    = (VNORMs(K,jsn)/VSUMs(jsn))*QSTR(jsn,JB)
         QOUT(K,JB) =  QOUT(K,JB)+QNEW(K)
+        QDSW(K,ID) =  QDSW(K,ID)+QNEW(K)                            ! For layer-specific output; ID redefined for SP/PI/PU/GT    !SR 12/19/2022
         TAVG(jsn,JB)=TAVG(jsn,JB)+QNEW(K)*T2(K,ID)                  ! SW 7/30/09
         IF(CONSTITUENTS)CAVG(jsn,JB,CN(1:NAC))=CAVG(jsn,JB,CN(1:NAC))+QNEW(K)*C2(K,ID,CN(1:NAC))  
         IF(DERIVED_CALC)CDAVG(jsn,JB,CDN(1:NACD(JW),JW))=CDAVG(jsn,JB,CDN(1:NACD(JW),JW))+QNEW(K)*CD(K,ID,CDN(1:NACD(JW),JW))
@@ -762,8 +772,8 @@ ENTRY DOWNSTREAM_WITHDRAWAL_ESTIMATE(JS,TEMPEST,ESTRTEST)
   END IF
   IF (ESTRTEST > EL(KT,ID)-ELR) ELSTR = WSEL
   IF (KBSW(JS,JB) < KSTR) THEN
-    KSTR  = KT
-    ELSTR = WSEL                                                                                                       !SW 10/05/00
+    KSTR  = KTOP         !KT
+    ELSTR = EL(KTOP,ID)  !WSEL                                                                                                       !SW 10/05/00
   END IF
 
 ! Boundary interference
@@ -856,6 +866,14 @@ ENTRY DOWNSTREAM_WITHDRAWAL_ESTIMATE(JS,TEMPEST,ESTRTEST)
   END DO
 
 ! Outflows
+    IF(VSUM==0.0)THEN
+      WRITE(WRN,'(A,F12.3,A,I5,A,I5,A,I5,A,E12.4,A)')'DOWNSTREAM WITHDRAWAL ESTIMATE: VSUM=0.0 on JDAY:',JDAY,' KTOP:',KTOP,' KBOT:',KBOT,' KSTR:',KSTR,' DLRHOMAX:',DLRHOMAX,' SET TO EQUAL WITHDRAWALS WITH DEPTH'
+      VSUM=1.0
+      DO K=KTOP,KBOT
+      VNORM(K)=1.0/(KTOP-KBOT+1)
+      ENDDO
+  ENDIF
+
 
   tempest=0.0
   DO K=KTOP,KBOT
@@ -898,8 +916,8 @@ ENTRY LATERAL_WITHDRAWAL
   END IF
   IF (EWD(JWD) > EL(KT,I)) ELWD = EL(KT,I)
   IF (KBWD(JWD) < KWD) THEN
-    KWD  = KT
-    ELWD = EL(KT,I)
+    KWD  = KTOP        ! KT  !SW 8/13/2024
+    ELWD = EL(KTOP,I)  ! EL(KT,I)
   END IF
 
 ! Boundary interference
@@ -989,6 +1007,14 @@ ENTRY LATERAL_WITHDRAWAL
   TAVGW(JWD)=0.0
   IF(CONSTITUENTS)CAVGW(JWD,CN(1:NAC))=0.0
   IF(DERIVED_CALC)CDAVGW(JWD,CDN(1:NACD(JW),JW))=0.0
+  
+    IF(VSUM==0.0)THEN
+      WRITE(WRN,'(A,F12.3,A,I5,A,I5,A,I5,A,E12.4,A)')'LATERAL WITHDRAWAL: VSUM=0.0 on JDAY:',JDAY,' KTOP:',KTOP,' KBOT:',KBOT,' KWD:',KWD,' DLRHOMAX:',DLRHOMAX,' SET TO EQUAL WITHDRAWALS WITH DEPTH'
+      VSUM=1.0
+      DO K=KTOP,KBOT
+      VNORM(K)=1.0/(KTOP-KBOT+1)
+      ENDDO
+  ENDIF
 
   DO K=KTOP,KBOT
     FRACV=(VNORM(K)/VSUM)
@@ -1087,8 +1113,8 @@ ENTRY LATERAL_WITHDRAWAL
   END IF
   IF (ESTRTEST > EL(KT,I)) ELWD = EL(KT,I)
   IF (KBWD(JJWD) < KWD) THEN
-    KWD  = KT
-    ELWD = EL(KT,I)
+    KWD  = KTOP        ! KT
+    ELWD = EL(KTOP,I)  ! EL(KT,I)
   END IF
 
 ! Boundary interference
@@ -1174,6 +1200,15 @@ ENTRY LATERAL_WITHDRAWAL
   END DO
 
 ! Outflows
+  
+    IF(VSUM==0.0)THEN
+      WRITE(WRN,'(A,F12.3,A,I5,A,I5,A,I5,A,E12.4,A)')'LATERAL WITHDRAWAL ESTIMATE: VSUM=0.0 on JDAY:',JDAY,' KTOP:',KTOP,' KBOT:',KBOT,' KWD:',KWD,' DLRHOMAX:',DLRHOMAX,' SET TO EQUAL WITHDRAWALS WITH DEPTH'
+      VSUM=1.0
+      DO K=KTOP,KBOT
+      VNORM(K)=1.0/(KTOP-KBOT+1)
+      ENDDO
+  ENDIF
+
 
   TEMPEST = 0.0                                                                                                       !SR 12/19/2022
   DO K=KTOP,KBOT
@@ -1511,7 +1546,7 @@ end subroutine Q_Single_Well_EQN
 MODULE SELECTIVE1 
  REAL                                          :: NXTSTR, NXTTCD, NXTSPLIT,TCDFREQ,TFRQTMP
   CHARACTER(8)                                 :: TEMPC,TSPLTC
-  CHARACTER(8), ALLOCATABLE, DIMENSION(:)      :: TCELEVCON,TCYEARLY,TCNTR,TSPLTCNTR,MONCTR,TSYEARLY,DYNSEL,ELCONTSPL,DYNSELSPLT
+  CHARACTER(8), ALLOCATABLE, DIMENSION(:)      :: TCELEVCON,TCYEARLY,TCNTR,TSPLTCNTR,TSYEARLY,DYNSEL,ELCONTSPL,DYNSELSPLT
   INTEGER                                      :: NUMTEMPC,NUMTSPLT, TEMPN        
   INTEGER, ALLOCATABLE, DIMENSION(:)           :: TCNELEV,TCJB,TCJS,TCISEG,TSPLTJB,NOUTS,KSTRSPLT, JBMON, JSMON, NCOUNTCW,SELD
   REAL,          ALLOCATABLE, DIMENSION(:,:)   :: TCELEV, TEMPCRIT,QSTRFRAC
@@ -1628,7 +1663,7 @@ USE SELECTIVE1;   USE MAIN
       
   ALLOCATE (TCNELEV(NUMTEMPC),TCJB(NUMTEMPC),TCJS(NUMTEMPC), TCELEV(NUMTEMPC,100),TCTEMP(NUMTEMPC),TCTEND(NUMTEMPC),TCTSRT(NUMTEMPC),NCOUNTC(NST,NBR),TCISEG(NUMTEMPC),TCKLAY(NUMTEMPC),TCELEVCON(NUMTEMPC)) 
   ALLOCATE (TCYEARLY(NUMTEMPC), JBMON(NUMTEMPC),JSMON(NUMTEMPC),TCNTR(NUMTEMPC)) 
-  ALLOCATE (VOLM(NWB),MONCTR(NUMTEMPC),NCOUNTCW(NWD),QWDFRAC(NWD),QSTRFRAC(NST,NBR),DYNSEL(NUMTEMPC),SELD(NUMTEMPC),NXSEL(NUMTEMPC),TEMP2(NUMTEMPC))       
+  ALLOCATE (VOLM(NWB),NCOUNTCW(NWD),QWDFRAC(NWD),QSTRFRAC(NST,NBR),DYNSEL(NUMTEMPC),SELD(NUMTEMPC),NXSEL(NUMTEMPC),TEMP2(NUMTEMPC))       
   ALLOCATE (DYNSF(NUMTEMPC),MINWL(NUMTEMPC))    
   DYNSF=.FALSE.;MINWL=0.0
   
@@ -2360,7 +2395,7 @@ ENTRY DEALLOCATE_SELECTIVE
 CLOSE(2900)
   DEALLOCATE (TCNELEV,TCJB,TCJS, TCELEV,TCTEMP,TCTEND,TCTSRT,NCOUNTC,TCISEG,TCKLAY,TCELEVCON,ELCONTSPL) 
   DEALLOCATE (TSPLTJB,TSPLTT,NOUTS,JSTSPLT,KSTRSPLT,TCYEARLY, JBMON,JSMON,TCNTR,TSPLTCNTR,JSTSPLTT) 
-  DEALLOCATE (VOLM,MONCTR,NCOUNTCW,QWDFRAC,QSTRFRAC,MINWL)    
+  DEALLOCATE (VOLM,NCOUNTCW,QWDFRAC,QSTRFRAC,MINWL)    
   DEALLOCATE(TEMPCRIT,VOLMC,DYNSEL,SELD,NXSEL,TEMP2,TSYEARLY,TSTEND,TSTSRT,DYNSF,DYNSPF,DYNSELSPLT,TEMP3,NXSELSPLT)
 RETURN   
 
@@ -2386,7 +2421,9 @@ Module Selective1USGS
   CHARACTER(5),  ALLOCATABLE, DIMENSION(:,:)   :: tstype
   LOGICAL,       ALLOCATABLE, DIMENSION(:)     :: wd_active, share_flow
   LOGICAL,       ALLOCATABLE, DIMENSION(:,:)   :: no_flow, str_active
-  LOGICAL, ALLOCATABLE, DIMENSION(:)           :: DYNSF
+  LOGICAL,       ALLOCATABLE, DIMENSION(:)     :: DYNSF, DYNTF
+  CHARACTER(30)                                :: CHAR30
+  REAL, ALLOCATABLE, DIMENSION(:)              :: MINWL   ! Minimum water level above centerline of outlet if TCELEVCON is ON
 
 End Module Selective1USGS
 
@@ -2401,11 +2438,10 @@ Subroutine SelectiveInitUSGS
   integer      :: ifile, nj, N, JJ
   REAL         :: DAYTEST
   character(8) :: tsshare, AID1
-  CHARACTER(1) :: INFORMAT        
+  CHARACTER(1) :: INFORMAT, CHAR1        
   LOGICAL      :: CSVFORMAT
-  INTEGER      :: NoOutlets   !ZZ 4/2023 maximum no of blending outlets
+  INTEGER      :: NoOutlets=30   !ZZ 4/2023 maximum no of blending outlets
   
-  NoOutlets=20
   ifile=1949
   tavg=0.0
   tavgw=0.0
@@ -2458,6 +2494,15 @@ Subroutine SelectiveInitUSGS
   READ (NUNIT,'(A)') AID1 
   IF (INDEX(AID1, "$") == 0) THEN
     CSVFORMAT=.FALSE.
+        ! Check for commas -- another sign that it is comma-delimited
+    READ (NUNIT,'(A)') CHAR30
+    DO J=1,30
+      IF (CHAR30(J:J)==',') THEN
+        CSVFORMAT=.TRUE.
+        EXIT
+      END IF
+    END DO
+    BACKSPACE(NUNIT)     
   ELSE
     CSVFORMAT=.TRUE.
   END IF
@@ -2473,32 +2518,30 @@ Subroutine SelectiveInitUSGS
     read (NUNIT,'(//8x,f8.0)') tfrqtmp
     read (NUNIT,'(//8x,a8,i8,f8.0)') tempc, numtempc, tcdfreq
   END IF
-  !nxtstr   = tmstrt
-  !nxttcd   = tmstrt
-  !nxtsplit = tmstrt
-        IF(JDAY>TMSTRT)THEN   ! SW 8/10/2023  During restart this allows continuing output
-          NXTSTR=JDAY          
-          NXTTCD=JDAY   
-          NXTSPLIT=JDAY
-      ELSE
-          NXTSTR=TMSTRT
-          NXTTCD=TMSTRT   
-          NXTSPLIT=TMSTRT
-      ENDIF
+
+  IF(JDAY>TMSTRT)THEN   ! SW 8/10/2023  During restart this allows continuing output
+      NXTSTR=JDAY          
+      NXTTCD=JDAY   
+      NXTSPLIT=JDAY
+  ELSE
+      NXTSTR=TMSTRT
+      NXTTCD=TMSTRT   
+      NXTSPLIT=TMSTRT
+  ENDIF
 
   allocate (tcnelev(numtempc),tcjb(numtempc),tcjs(numtempc),tcelev(numtempc,100),tctemp(numtempc),tctend(numtempc),tctsrt(numtempc))
   allocate (ncountc(nst,nbr),tciseg(numtempc),tcklay(numtempc),tcelevcon(numtempc))
   Allocate (tcyearly(numtempc), tcntr(numtempc))
   allocate (volm(nwb),ncountcw(nwd),qwdfrac(nwd),qstrfrac(nst,nbr),DYNSEL(numtempc),SELD(numtempc),NXSEL(numtempc),TEMP2(numtempc))
-  ALLOCATE(DYNSF(NUMTEMPC))
-  DYNSF=.FALSE.
+  ALLOCATE(DYNSF(NUMTEMPC),MINWL(NUMTEMPC))
+  DYNSF=.FALSE.;MINWL=0.0
   
   ncountc=0
   IF(CSVFORMAT) THEN
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtempc
     IF(CSVFORMAT) THEN
@@ -2518,7 +2561,7 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtempc
     IF(CSVFORMAT) THEN
@@ -2532,14 +2575,14 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtempc
     IF(CSVFORMAT) THEN
-      READ (NUNIT,*) AID1, tcelevcon(j)
+      READ (NUNIT,*) AID1, tcelevcon(j),MINWL(j)
       tcelevcon(j)=ADJUSTR(tcelevcon(j))
     ELSE
-      read (NUNIT,'(8x,a8)') tcelevcon(j)
+    read (NUNIT,'(8x,a8,F8.0)') tcelevcon(j),MINWL(j)
     END IF
   end do
   IF(CSVFORMAT) THEN
@@ -2548,15 +2591,10 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*) AID1, tspltc, numtsplt, tspltfreq, tsconv
     tspltc=ADJUSTR(tspltc)
   ELSE  
-    read (NUNIT,'(//8x,a8,i8,2f8.0)') tspltc, numtsplt, tspltfreq, tsconv
+  read (NUNIT,'(//8x,a8,i8,2f8.0)') tspltc, numtsplt, tspltfreq, tsconv
   END IF
   
   allocate (tsyearly(numtsplt), tstsrt(numtsplt), tstend(numtsplt), tspltjb(numtsplt), tspltt(numtsplt), nouts(numtsplt))
-  !allocate (jstsplt(numtsplt,10), kstrsplt(10), tspltcntr(numtsplt), elcontspl(numtsplt))
-  !allocate (tsdepth(numtsplt,10), tstype(numtsplt,10), tsminfrac(numtsplt,10), tsprior(numtsplt,10))
-  !allocate (tsminhead(numtsplt,10), tsmaxhead(numtsplt,10), tsmaxflow(numtsplt,10), no_flow(numtsplt,10), share_flow(numtsplt))
-  !allocate (tsdynsel(numtsplt), tsseld(numtsplt), nxtssel(numtsplt), tstemp2(numtsplt))
-  !allocate (nout0(10), nout1(10), nout2(10), minfrac1(10), maxfrac1(10), minfrac2(10), maxfrac2(10), splt2t(10), splt2e(10))
   allocate (ewdsav(nwd), wd_active(nwd), estrsav(nst,nbr), str_active(nst,nbr))
   !
   allocate (jstsplt(numtsplt,NoOutlets), kstrsplt(NoOutlets), tspltcntr(numtsplt), elcontspl(numtsplt))
@@ -2564,12 +2602,14 @@ Subroutine SelectiveInitUSGS
   allocate (tsminhead(numtsplt,NoOutlets), tsmaxhead(numtsplt,NoOutlets), tsmaxflow(numtsplt,NoOutlets), no_flow(numtsplt,NoOutlets), share_flow(numtsplt))
   allocate (tsdynsel(numtsplt), tsseld(numtsplt), nxtssel(numtsplt), tstemp2(numtsplt))
   allocate (nout0(NoOutlets), nout1(NoOutlets), nout2(NoOutlets), minfrac1(NoOutlets), maxfrac1(NoOutlets), minfrac2(NoOutlets), maxfrac2(NoOutlets), splt2t(NoOutlets), splt2e(NoOutlets))  
-
-  IF(CSVFORMAT) THEN
+  ALLOCATE (DYNTF(numtsplt))
+  DYNTF=.FALSE.
+  
+   IF(CSVFORMAT) THEN
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
@@ -2584,8 +2624,8 @@ Subroutine SelectiveInitUSGS
         write (w2err, '(A,I0)') 'ERROR-- Less than two outlets specified for blending group ',j
         ERROR_OPEN = .TRUE.     ! will trigger the program to end when this subroutine is completed
         return
-      else if (nouts(j) > 20) then
-        write (w2err, '(A,I0)') 'ERROR-- More than 20 outlets specified for blending group ',j
+      else if (nouts(j) > NoOutlets) then
+        write (w2err, '(A,I0)') 'ERROR-- More than ",NoOutlets," outlets specified for blending group ',j
         ERROR_OPEN = .TRUE.
         return
       end if
@@ -2597,20 +2637,20 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
       READ (NUNIT,*) AID1, (jstsplt(j,n),n=1,nouts(j))
     ELSE
-      read (NUNIT,'(8x,20i8)') (jstsplt(j,n),n=1,nouts(j))
+      read (NUNIT,'(8x,30i8)') (jstsplt(j,n),n=1,nouts(j))
     END IF
   end do
   IF(CSVFORMAT) THEN
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
@@ -2623,7 +2663,7 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
@@ -2636,7 +2676,7 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
@@ -2649,7 +2689,7 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
@@ -2675,7 +2715,7 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,numtsplt
     IF(CSVFORMAT) THEN
@@ -2705,14 +2745,14 @@ Subroutine SelectiveInitUSGS
     READ (NUNIT,*)
     READ (NUNIT,*) AID1, tempn
   ELSE
-    read (NUNIT,'(//8x,i8)') tempn
+  read (NUNIT,'(//8x,i8)') tempn
   END IF
   allocate (tempcrit(nwb,tempn),volmc(nwb,tempn))
   IF(CSVFORMAT) THEN
     READ (NUNIT,*)
     READ (NUNIT,*)
   ELSE
-    read (NUNIT,'(/)')
+  read (NUNIT,'(/)')
   END IF
   do j=1,tempn
     IF(CSVFORMAT) THEN
@@ -2788,7 +2828,7 @@ Subroutine SelectiveInitUSGS
         SELD(J) = 1009+J
         OPEN (SELD(J),FILE='dynselective'//SEGNUM(1:L)//'.npt',STATUS='OLD')
         
-          READ(SELD(J),'(A1)')INFORMAT    ! SW 8/28/2019
+        READ(SELD(J),'(A1)')INFORMAT    ! SW 8/28/2019
         IF(INFORMAT=='$')DYNSF(J)=.TRUE.
     
         IF(DYNSF(J))THEN
@@ -2819,9 +2859,19 @@ Subroutine SelectiveInitUSGS
         L         = len_trim(segnum)
         tsseld(j) = 1009+numtempc+j
         open (tsseld(j),file='dynsplit_selective'//segnum(1:L)//'.npt',status='old')
-        read (tsseld(j),'(///2F8.0)') nxtssel(j), tstemp2(j)
-        tspltt(j) = tstemp2(j)
-        read (tsseld(j),'(2F8.0)') nxtssel(j), tstemp2(j)
+        !
+        READ(tsseld(j),'(A1)') CHAR1
+        IF(CHAR1=='$') DYNTF(J)=.TRUE.
+        IF(DYNTF(J))THEN
+          READ (tsseld(j),'(/)')
+          READ (tsseld(j),*) nxtssel(j), tstemp2(j)
+          tctemp(J)=TEMP2(J)
+          READ (tsseld(j),*) nxtssel(j), tstemp2(j)       
+        ELSE
+          READ (tsseld(j),'(//2F8.0)') nxtssel(j), tstemp2(j)
+          tspltt(j) = tstemp2(j)
+          READ (tsseld(j),'(2F8.0)') nxtssel(j), tstemp2(j)
+        ENDIF 
       end if
     end do
   end if
@@ -2930,18 +2980,12 @@ Subroutine SelectiveUSGS
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
   IMPLICIT NONE
 
-  integer :: jj, jst, n, nj, num_noflow, ng0, prior1, prior2, ng1max, ng1min, num_left
-  integer :: j2hi, j2lo, j2max, j2min, j2pref
-  real    :: qall, elr, wsel, q_notblended, sum_minfrac0, sum_maxfrac1, sum_maxfrac2, sumfrac
-  real    :: maxelev, minelev, blendfrac, excess_frac, addfrac, maxtemp, mintemp
-  real    :: lastfrac, lastfrac2, ttarg, sumtemp, etemp, etemp1, etemp2, sumelev, elev1, elev2
+  integer :: ifile, j2lo, j2hi, j2max, j2min, j2pref, jj, jjw, jst, kk, ks
+  integer :: n, ng0, ng1max, ng1min, nj, num_left, num_noflow, prior1, prior2
+  real    :: addfrac, blendfrac, daytest, elev1, elev2, elr, etemp, etemp1, etemp2, excess_frac
+  real    :: lastfrac, lastfrac2, maxelev, maxtemp, minelev, mintemp, q_notblended, qall
+  real    :: sum_minfrac0, sum_maxfrac1, sum_maxfrac2, sumelev, sumfrac, sumtemp, tcomp, tempest, tmod, ttarg, wsel  
   
-  INTEGER JJW, KK, KS, IFILE, KSTR
-  REAL DAYTEST, TCOMP, TEMPEST, TMOD
-
-! qstr = qstrsav   ! xxx not sure how to do this yet -- need to reset QSTR when control periods expire
-! qwd  = qwdsav    ! xxx not sure how to do this yet -- need to reset QWD when control periods expire
-
   str_active = .FALSE.
   wd_active  = .FALSE.
   j2pref     = 1
@@ -3003,7 +3047,11 @@ Subroutine SelectiveUSGS
       if (tsdynsel(j) == '      ON') then
         do while (jday >= nxtssel(j))
           tspltt(j) = tstemp2(j)
-          read (tsseld(j),'(2F8.0)') nxtssel(j), tstemp2(j)
+          IF(DYNTF(J))THEN
+            read (tsseld(j),*) nxtssel(j), tstemp2(j)
+          ELSE
+            read (tsseld(j),'(2F8.0)') nxtssel(j), tstemp2(j)
+          END IF
         end do
       end if
     end do
@@ -4258,11 +4306,11 @@ Subroutine SelectiveUSGS
         SELD(J)=1009+J
         DO WHILE (JDAY >= NXSEL(J))
           tctemp(j) = TEMP2(J)
-             IF(DYNSF(J))THEN
-                    READ (SELD(J),*) NXSEL(J),TEMP2(J)
-                ELSE
-                    READ (SELD(J),'(1000F8.0)') NXSEL(J),TEMP2(J)
-                ENDIF   
+          IF(DYNSF(J))THEN
+              READ (SELD(J),*) NXSEL(J),TEMP2(J)
+          ELSE
+              READ (SELD(J),'(1000F8.0)') NXSEL(J),TEMP2(J)
+          ENDIF   
           !READ (SELD(J),'(1000F8.0)') NXSEL(J),TEMP2(J)
         END DO
       END IF
@@ -4360,7 +4408,7 @@ Subroutine SelectiveUSGS
               end do
             end if
           end if
-          if (tcelevcon(j) == '      ON' .and. tcnelev(j) > ncountc(js,jb) .and. estr(js,jb) > elws(ds(jb))) then
+          if (tcelevcon(j) == '      ON' .and. tcnelev(j) > ncountc(js,jb) .and. estr(js,jb) > elws(ds(jb)-MINWL(J))) then
             ncountc(js,jb) = ncountc(js,jb)+1
             estr(js,jb)    = tcelev(j,ncountc(js,jb))
           end if
@@ -4448,7 +4496,7 @@ Subroutine SelectiveUSGS
               end do
             end if
           end if
-          if (tcelevcon(j) == '      ON' .and. tcnelev(j) > ncountcw(jwd) .and. ewd(jwd) > elws(iwd(jwd))) then
+          if (tcelevcon(j) == '      ON' .and. tcnelev(j) > ncountcw(jwd) .and. ewd(jwd) > elws(iwd(jwd))-MINWL(J)) then
             ncountcw(jwd) = ncountcw(jwd)+1
             ewd(jwd)      = tcelev(j,ncountcw(jwd))
           end if
@@ -4464,11 +4512,12 @@ return
 ENTRY DEALLOCATE_SELECTIVEUSGS
   DEAllocate (tcnelev,tcjb,tcjs, tcelev,tctemp,tctend,tctsrt,ncountc,tciseg,tcklay,tcelevcon,elcontspl)
   DEAllocate (tspltjb,tspltt,nouts,jstsplt,kstrsplt,tcyearly, tcntr,tspltcntr)
-  DEallocate (volm,ncountcw,qwdfrac,qstrfrac)
+  DEallocate (volm,ncountcw,qwdfrac,qstrfrac,MINWL)
   DEallocate (tempcrit,volmc,DYNSEL,SELD,NXSEL,TEMP2,TSYEARLY,TSTEND,TSTSRT)
   deallocate (tsdepth, tstype, tsminfrac, tsprior, tsminhead, tsmaxhead, tsmaxflow, no_flow)
   deallocate (tsdynsel, tsseld, nxtssel, tstemp2, ewdsav, estrsav, share_flow, wd_active, str_active)
-  deallocate (nout0, nout1, nout2, minfrac1, minfrac2, maxfrac1, maxfrac2, splt2t, splt2e,DYNSF)
+  deallocate (nout0, nout1, nout2, minfrac1, minfrac2, maxfrac1, maxfrac2, splt2t, splt2e)
+  DEALLOCATE (DYNSF, DYNTF)
 RETURN
 
 End Subroutine SelectiveUSGS
@@ -4638,4 +4687,1369 @@ Entry Set_Flow_Fracs2(j, jb, j2pref)                                          ! 
     end if
   end if
 Return
-End Subroutine Set_Flow_Fractions
+  End Subroutine Set_Flow_Fractions
+
+!***********************************************************************************************************************************
+! Selective Withdrawal and Forcast Computations for the Shasta Dam TCD                
+! Developed by WaterCourse Engineering, 11/18/2019, 8/17/2021                       
+! Incorporated into V5.0 and Updated by                                     
+! Zhong Zhang, PSU                                                 
+! 10/15/2024                                                        
+!
+! FORCAST input parameters:
+! FCST	   ON/OFF switch
+! LWRGATE	 Adjustment value to target temperature (oC)
+! BEGIN_HI The begin julian day of high-gate open  restriction period
+! END_HI	 The end julian day of high-gate open  restriction period
+! N_TRIES	 The number of required attempts
+! INGATE	 The low gate number to begin forecast blending
+! MINSUB	 The level of minimum submersion above gate invert for opening gates (m)
+   
+!***********************************************************************************************************************************
+!**                                               S E L E C T I V E  T C D  I N I T                                               **
+!***********************************************************************************************************************************  
+Module Selective1TCD
+  INTEGER                                      :: numtempc, numtsplt, tempn, ng1, ng2
+  INTEGER,       ALLOCATABLE, DIMENSION(:)     :: tcnelev, tcjb, tcjs, tciseg, kstrsplt, ncountcw, seld
+  INTEGER,       ALLOCATABLE, DIMENSION(:)     :: tspltjb, tsseld, nouts, nout0, nout1, nout2
+  INTEGER,       ALLOCATABLE, DIMENSION(:,:)   :: jstsplt, ncountc, tsprior
+  REAL                                         :: nxtstr, nxttcd, nxtsplit, tcdfreq, tfrqtmp, tspltfreq
+  REAL                                         :: sum_minfrac1, sum_minfrac2, qfrac1, qfrac2, tsconv
+  REAL,          ALLOCATABLE, DIMENSION(:)     :: tctemp, tctend, tctsrt, tcklay, tspltt, volm, qwdfrac, tstend, tstsrt, nxsel,temp2
+  REAL,          ALLOCATABLE, DIMENSION(:)     :: nxtssel, tstemp2, ewdsav, minfrac1, minfrac2, maxfrac1, maxfrac2, splt2t, splt2e
+  REAL,          ALLOCATABLE, DIMENSION(:,:)   :: tcelev, tempcrit, qstrfrac, volmc
+  REAL,          ALLOCATABLE, DIMENSION(:,:)   :: tsdepth, tsminfrac, tsminhead, tsmaxhead, tsmaxflow, estrsav
+  CHARACTER(8)                                 :: tempc, tspltc
+  CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: tcelevcon, tcyearly, tcntr, dynsel
+  CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: tspltcntr, tsyearly, elcontspl, tsdynsel
+  CHARACTER(5),  ALLOCATABLE, DIMENSION(:,:)   :: tstype
+  LOGICAL,       ALLOCATABLE, DIMENSION(:)     :: wd_active, share_flow
+  LOGICAL,       ALLOCATABLE, DIMENSION(:,:)   :: no_flow, str_active
+  LOGICAL,       ALLOCATABLE, DIMENSION(:)     :: DYNSF, DYNTF
+  
+  !aeb    New variables for TCD operations
+  INTEGER                                      :: maxouts, maxGates                     !aeb  "maxouts" dimensions outlet arrays (formerly limited to 10 outlets): maxGates dimensions maxGateNo
+  INTEGER                                      :: BEGIN_HI, END_HI                      !aeb  Add start and end of gate restriction period
+  INTEGER,       ALLOCATABLE, DIMENSION(:)     :: maxGateNo, minGateNo, nGates
+  INTEGER,       ALLOCATABLE, DIMENSION(:,:)   :: tsminjday, tsmaxjday                  !aeb  Add min-max jday to restrict gate opening
+  REAL,          ALLOCATABLE, DIMENSION(:,:)   :: tsminfrac2, jst_Volume
+  LOGICAL                                      :: FORECASTING
+
+  !aeb    New variables for checking level (gate) availability
+  INTEGER                                      :: current_low_Gate, current_hi_Gate     !aeb Keep track of prior attempt to open low gate for blending (to record consecutive attempts)
+  INTEGER                                      :: N_ATTEMPTS, iAttempt                  !aeb Keep track of prior attempt to open low gate for blending (to record consecutive attempts)
+  INTEGER                                      :: TCD_DOWN_GATE                        
+  INTEGER,                    DIMENSION(1:3670):: lowAttempt, hiAttempt                 !aeb This allocates blending frequency (= # attempts) of up to 10/day for a year
+  INTEGER,       ALLOCATABLE, DIMENSION(:)     :: jst_TCDdown
+  REAL                                         :: release_Volume, averaging_Interval    ! blended_Volume, not Blended_Volume
+  REAL                                         :: LWR_GATE, MIN_SUBMERGENCE
+  REAL,          ALLOCATABLE, DIMENSION(:,:)   :: minWSE, invertElev
+  LOGICAL,       ALLOCATABLE, DIMENSION(:)     :: offLimits_low, offLimits_hi
+  LOGICAL                                      :: HI_GATE_RESTRICTIONS, attempt_offLimits
+End Module Selective1TCD
+
+Subroutine SelectiveInitTCD
+  Use Selective1TCD; USE MAIN
+  USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINETIC; USE SHADEC; USE EDDY
+  USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
+  IMPLICIT NONE
+  
+  integer      :: ifile, nj, N, JJ, jst       
+  REAL         :: daytest
+  CHARACTER(8) :: AID1, tsshare, FCST
+  CHARACTER(1) :: CHAR1
+  maxouts = 30          !aeb. Max number of structres per blending group
+  maxGates = 10         !aeb. Max number of gates per blending group
+  
+  allocate (offLimits_low(0:maxGates), offLimits_hi(0:maxGates))
+ 
+  offLimits_hi(:) = .FALSE.     !aeb  All levels (gates) available for hi blending at first
+  offLimits_low(:) = .FALSE.    !aeb  All levels (gates) available for low blending at first.
+  lowAttempt(:) = 0             !aeb  No days have been checked
+  hiAttempt(:) = 0              !aeb  No days have been checked
+   
+  attempt_offLimits = .FALSE.   !aeb Gate combinations are OK at first
+  HI_GATE_RESTRICTIONS = .FALSE.!aeb Start with no restrictions on setting hi_Gate
+  iAttempt = 0                  !aeb  Initialize number of attempts to set gates
+  LWR_GATE = 0.10
+  TCD_DOWN_GATE = 4             !Define TCDdown as the 4th outlet of gate #4, the side gate
+  current_low_Gate = 1          !aeb  Initialize low gate
+  current_hi_Gate = 1           !aeb  Initialize hi gate
+  
+  !Debug gates attempts
+  open(7777,file='Gate_attempts.csv',status='unknown')
+  write(7777,*)'  JDay,',' Current,','  ,',' Attempt,','  ,'
+  write(7777,*)'      ,','   hi,','  low,','   hi,','  low,'
+
+  !Collect flows (check average of previous day's flows when forecasting)
+  open(7778,file='Daily_flows.csv',status='unknown')
+  write(7778,*)'    JDay,','  AvgGateQ,',' AvgNotBlendQ,','Interval(sec),'  
+  
+  ifile=1949
+  tavg=0.0
+  tavgw=0.0
+  do jb=1,nbr
+    if(nstr(jb) > 0)then
+      ifile=ifile+1
+      write (segnum,'(i0)') jb
+      segnum = adjustl(segnum)
+      l      = len_trim(segnum)
+
+      IF(RESTART_IN)THEN
+        OPEN  (ifile,file='str_br'//segnum(1:l)//'.csv',POSITION='APPEND')
+        JDAY1=0.0
+        REWIND (IFILE)
+        READ   (IFILE,'(//)',END=13)
+        DO WHILE (JDAY1 < JDAY)
+          READ (IFILE,*,END=13) JDAY1              
+        END DO
+        BACKSPACE (IFILE)
+13      JDAY1=0.0
+      ELSE
+        open  (ifile,file='str_br'//segnum(1:l)//'.csv',status='unknown')
+        write (ifile,*)'Branch:,',jb,', # of structures:,',nstr(jb),' outlet temperatures'
+        write (ifile,'("      JDAY,",<nstr(jb)>(6x,"T(C),"),<nstr(jb)>(3x,"Q(m3/s),"),<nstr(jb)>(4x,"ELEVCL,"))')
+      ENDIF
+    endif
+  end do
+
+  if(nwd > 0)then
+    ifile=ifile+1
+    IF(RESTART_IN)THEN
+      OPEN  (ifile,file='wd_out.opt',POSITION='APPEND')
+      JDAY1=0.0
+      REWIND (IFILE)
+      READ   (IFILE,'(/)',END=14)
+      DO WHILE (JDAY1 < JDAY)
+        READ (IFILE,'(F10.0)',END=14) JDAY1
+      END DO
+      BACKSPACE (IFILE)
+14    JDAY1=0.0
+    ELSE
+      open  (ifile,file='wd_out.opt',status='unknown')
+      write (ifile,*)'Withdrawals: # of withdrawals:',nwd,' outlet temperatures'
+      write (ifile,'("      JDAY",<nwd>(6x,"T(C)"),<nwd>(3x,"Q(m3/s)"),<nwd>(4x,"ELEVCL"))')
+    ENDIF
+  end if
+
+  !ZZ 8/2024, w2_selective.npt in a CSV format.
+  open (NUNIT,file='w2_selective.npt',status='old')   
+  READ (NUNIT,'(A)') AID1 
+  IF (INDEX(AID1, "$") == 0) THEN
+    write (w2err, '(A)') 'w2_selective.npt for the TCD selective withdrawal must be in a CSV format!'
+  END IF
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO
+  READ (NUNIT,*) AID1, tfrqtmp 
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  READ (NUNIT,*) AID1, tempc, numtempc, tcdfreq
+  tempc=ADJUSTR(tempc)
+
+  IF(JDAY>TMSTRT)THEN   ! SW 8/10/2023  During restart this allows continuing output
+      NXTSTR=JDAY          
+      NXTTCD=JDAY   
+      NXTSPLIT=JDAY
+  ELSE
+      NXTSTR=TMSTRT
+      NXTTCD=TMSTRT   
+      NXTSPLIT=TMSTRT
+  ENDIF  
+  
+  allocate (tcnelev(numtempc),tcjb(numtempc),tcjs(numtempc),tcelev(numtempc,11),tctemp(numtempc),tctend(numtempc),tctsrt(numtempc))
+  allocate (ncountc(nst,nbr),tciseg(numtempc),tcklay(numtempc),tcelevcon(numtempc))
+  Allocate (tcyearly(numtempc), tcntr(numtempc))
+  allocate (volm(nwb),ncountcw(nwd),qwdfrac(nwd),qstrfrac(nst,nbr),DYNSEL(numtempc),SELD(numtempc),NXSEL(numtempc),TEMP2(numtempc))
+  ALLOCATE (DYNSF(numtempc))    
+  DYNSF=.FALSE.
+  
+  ncountc=0
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtempc
+    READ (NUNIT,*) AID1, tcntr(j),tcjb(j),tcjs(j),tcyearly(j),tctsrt(j),tctend(j),tctemp(j),tcnelev(j),(tcelev(j,n),n=1,tcnelev(j))
+    tcntr(j)=ADJUSTR(tcntr(j))
+    if(tcntr(j)=='      ST')then
+      tcelev(j,tcnelev(j)+1)=ESTR(tcjs(j),tcjb(j))   ! always put the original elevation as the last elevation
+    else
+      tcelev(j,tcnelev(j)+1)=EWD(tcjs(j))            ! always put the original elevation as the last elevation
+    endif
+  end do 
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtempc
+    READ (NUNIT,*) AID1, tciseg(j), tcklay(j), DYNSEL(J)
+    DYNSEL(J)=ADJUSTR(DYNSEL(J))  
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtempc
+    READ (NUNIT,*) AID1, tcelevcon(j)
+    tcelevcon(j)=ADJUSTR(tcelevcon(j))   
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  READ (NUNIT,*) AID1, tspltc, numtsplt, tspltfreq, tsconv, FCST, LWR_GATE
+  tspltc=ADJUSTR(tspltc); FCST=ADJUSTR(FCST)
+  FORECASTING = FCST == '      ON'
+  if (LWR_GATE < 0.0 .or. LWR_GATE > 2.0) LWR_GATE = 0.10
+    
+  allocate (tsyearly(numtsplt), tstsrt(numtsplt), tstend(numtsplt), tspltjb(numtsplt), tspltt(numtsplt), nouts(numtsplt))
+  allocate (jstsplt(numtsplt,maxouts), kstrsplt(maxouts), tspltcntr(numtsplt), elcontspl(numtsplt))                        
+  allocate (tsdepth(numtsplt,maxouts), tstype(numtsplt,maxouts), tsminfrac(numtsplt,maxouts), tsprior(numtsplt,maxouts))   
+  allocate (tsminhead(numtsplt,maxouts), tsmaxhead(numtsplt,maxouts), tsmaxflow(numtsplt,maxouts), no_flow(numtsplt,maxouts), share_flow(numtsplt))  
+  allocate (tsdynsel(numtsplt), tsseld(numtsplt), nxtssel(numtsplt), tstemp2(numtsplt))
+  allocate (nout0(maxouts), nout1(maxouts), nout2(maxouts), minfrac1(maxouts), maxfrac1(maxouts), minfrac2(maxouts), maxfrac2(maxouts), splt2t(maxouts), splt2e(maxouts))   
+  allocate (ewdsav(nwd), wd_active(nwd), estrsav(nst,nbr), str_active(nst,nbr))
+  allocate (tsminjday(numtsplt, maxouts), tsmaxjday(numtsplt, maxouts), minGateNo(numtsplt), maxGateNo(numtsplt), nGates(numtsplt), tsminfrac2(numtsplt,maxouts))     !aeb  Add min-max jday for gates to be open
+  allocate (jst_Volume(numtsplt,maxouts), minWSE(numtsplt,4), invertElev(numtsplt,4), jst_TCDdown(numtsplt))   
+  ALLOCATE (DYNTF(numtsplt))    
+  DYNTF=.FALSE.
+                       
+  !Initialize variables
+  jst_Volume = 0.0
+  averaging_Interval = 0.0
+  
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, tspltcntr(j), tspltjb(j), tsyearly(j), tstsrt(j), tstend(j), tspltt(j), tsdynsel(j), elcontspl(j), nouts(j), tsshare
+    tspltcntr(j)=ADJUSTR(tspltcntr(j)); tsyearly(j)=ADJUSTR(tsyearly(j)); tsdynsel(j)=ADJUSTR(tsdynsel(j)); elcontspl(j)=ADJUSTR(elcontspl(j)); tsshare=ADJUSTR(tsshare)
+    if (tspltc == '      ON') then
+      if (nouts(j) < 2) then
+        write (w2err, '(A,I0)') 'ERROR-- Less than two outlets specified for blending group ',j
+        ERROR_OPEN = .TRUE.               ! will trigger the program to end when this subroutine is completed
+        return
+      else if (nouts(j) > maxouts) then   
+        write (w2err, '(A,I0,A,I0)') 'ERROR-- More than ",maxouts," outlets specified for blending group ',j
+        ERROR_OPEN = .TRUE.
+        return
+      end if
+    end if
+    share_flow(j) = tsshare == '      ON'
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (jstsplt(j,n),n=1,nouts(j))
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsdepth(j,n),n=1,nouts(j))
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsminfrac(j,n),n=1,nouts(j))
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsprior(j,n),n=1,nouts(j))
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsminhead(j,n),n=1,nouts(j))
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsmaxhead(j,n),n=1,nouts(j))
+  end do
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsmaxflow(j,n),n=1,nouts(j))
+  end do   
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt
+    READ (NUNIT,*) AID1, (tsminfrac2(j,n),n=1,nouts(j))
+  end do  
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt       !aeb  Get restrictions on when gates can be open, min-max jday   
+    READ (NUNIT,*) AID1, (tsminjday(j,n),n=1,nouts(j))
+  end do    
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO  
+  do j=1,numtsplt         
+    READ (NUNIT,*) AID1, (tsmaxjday(j,n),n=1,nouts(j))
+  end do 
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO
+  
+  ! FORCAST input parameters:
+  READ (NUNIT,*) AID1, BEGIN_HI, END_HI, N_ATTEMPTS, current_low_Gate, MIN_SUBMERGENCE      
+  if(N_ATTEMPTS < 0.0 .or. N_ATTEMPTS > 365) N_ATTEMPTS = 3                                 ! Default hr to set gates every day
+  If(current_low_Gate < 1 .or. current_low_Gate > 4) current_low_Gate = 1                   ! If initial gate level is invalid, set to top gate
+  current_hi_Gate = current_low_Gate
+
+  ! Set gate (level) information
+  maxGateNo= 0
+  minGateNo= 9999
+  invertElev= 9999.
+  minWSE= 9999.
+  jst_TCDdown= 0
+  
+  estrsav = estr    ! Save the original structure elevations
+  ewdsav  = ewd     ! Save the original withdrawal elevations
+
+  !***********************************************************************************************************************************
+  do j=1,numtsplt
+    do n=1,nouts(j)
+      tstype(j,n) = "FIXED"
+      if (tsdepth(j,n)   > 0.0) tstype(j,n) = "FLOAT"
+      if (tsminfrac(j,n) > 1.0) tsminfrac(j,n) = 1.0    ! remove unrealistic input value
+      if (tsminhead(j,n) < 0.0) tsminhead(j,n) = 0.0    
+      if (tsmaxhead(j,n) < 0.0) tsmaxhead(j,n) = 0.0    
+      if (tsmaxflow(j,n) < 0.0) tsmaxflow(j,n) = 0.0    
+    end do
+  end do  
+  
+  do j=1,numtsplt
+    jb = tspltjb(j)
+    do n=1,nouts(j)
+      if (tsprior(j,n) == 5) then   ! Add TCDdown to side gate and record structure number
+          tsprior(j,n) = TCD_DOWN_GATE
+          jst_TCDdown(j) = jstsplt(j,n)
+      end if
+      if (tsprior(j,n) > 0) then    ! Get lowest and highest gate number for each blending group, and invert elev for each gate (level)                     
+          jst = jstsplt(j,n)
+          if (tsprior(j,n) > maxGateNo(j)) maxGateNo(j) = tsprior(j,n)            ! Get highest gate number for each blending group
+          if (tsprior(j,n) < minGateNo(j)) minGateNo(j) = tsprior(j,n)            ! Get lowest gate number for each blending group
+          if (invertElev(j, tsprior(j,n)) > estr(jst,jb)) invertElev(j, tsprior(j,n)) = estr(jst,jb)    !Get elevation of lowest outlet at gate level. 
+      end if
+      if (tsminfrac2(j,n) > 1.0) tsminfrac2(j,n) = 1.0  ! remove unrealistic input value
+    end do
+    nGates(j) = maxGateNo(j) - minGateNo(j) + 1         ! Calculate # of gates; gates should be contiguous. NOT CURRENTLY USED
+   
+    do n= 1,4
+        minWSE(j,n)= invertElev(j,n) + MIN_SUBMERGENCE  ! Set minimum WSE required to allow each level to open alone
+    end do
+  end do  
+  !***********************************************************************************************************************************
+  
+  if (tsconv <= 0.0) tsconv = 0.005   ! constrain the convergence criterion to be > 0.0 and <= 0.1
+  if (tsconv >  0.1) tsconv = 0.1
+
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO
+  READ (NUNIT,*) AID1, tempn
+  allocate (tempcrit(nwb,tempn),volmc(nwb,tempn)) 
+  DO J=1,2
+    READ (NUNIT,*)
+  END DO
+  do j=1,tempn
+    READ (NUNIT,*) AID1, (tempcrit(jw,j), jw=1,nwb) 
+  end do
+  close (NUNIT)
+
+  do jw=1,nwb
+    ifile=ifile+1
+    write (segnum,'(i0)') jw
+    segnum = adjustl(segnum)
+    l      = len_trim(segnum)
+    IF(RESTART_IN)THEN
+      OPEN  (ifile,file='Volume_wb'//segnum(1:l)//'.opt',POSITION='APPEND')
+      JDAY1=0.0
+      REWIND (IFILE)
+      READ   (IFILE,'(/)',END=15)
+      DO WHILE (JDAY1 < JDAY)
+        READ (IFILE,'(F10.0)',END=15) JDAY1
+      END DO
+      BACKSPACE (IFILE)
+15    JDAY1=0.0
+    ELSE
+      open (ifile,file='Volume_wb'//segnum(1:l)//'.opt',status='unknown')
+      write(ifile,'("    jday      Volume     ",<tempn>("Volcrit     "))')
+    END IF
+  end do
+
+  if (tempc == '      ON') then
+    do j=1,numtempc
+      if (tcyearly(j) == '     OFF') then
+        daytest=jday
+      else
+        daytest=real(jdayg)+jday-int(jday)
+      end if
+      if (daytest >= tctsrt(j) .and. daytest < tctend(j)) then
+
+      ! initializing structure elevation
+        if (tcntr(j) == '      ST') then
+          jb = tcjb(j)                                ! set branch index
+          js = tcjs(j)                                ! set structure index
+          do nj=1,tcnelev(j)                          ! making sure that structure is below water surface
+            if (tcelev(j,nj) < elws(ds(jb))) then
+              ncountc(js,jb)=nj
+              exit
+            end if
+          end do
+
+      ! initializing withdrawal elevation
+        else if (tcntr(j) == '      WD') then
+          jwd = tcjs(j)                               ! set withdrawal index
+          do nj=1,tcnelev(j)                          ! making sure that structure is below water surface
+            if (tcelev(j,nj) < elws(iwd(jwd))) then
+              ncountcw(jwd)=nj
+              exit
+            end if
+          end do
+        end if
+      end if
+
+    ! Open dynamic selective withdrawal files
+      IF (DYNSEL(J) == '      ON') THEN
+        WRITE (SEGNUM,'(I0)') J
+        SEGNUM  = ADJUSTL(SEGNUM)
+        L       = LEN_TRIM(SEGNUM)
+        SELD(J) = 1009+J
+        OPEN (SELD(J),FILE='dynselective'//SEGNUM(1:L)//'.npt',STATUS='OLD')      
+        READ(SELD(J),'(A1)') CHAR1    
+        IF(CHAR1=='$') DYNSF(J)=.TRUE.
+        IF(DYNSF(J))THEN
+          READ (SELD(J),'(/)')
+          READ (SELD(J),*) NXSEL(J),TEMP2(J)
+          tctemp(J)=TEMP2(J)
+          READ (SELD(J),*) NXSEL(J),TEMP2(J)       
+        ELSE
+          READ (SELD(J),'(//1000F8.0)') NXSEL(J),TEMP2(J)
+          tctemp(J)=TEMP2(J)
+          READ (SELD(J),'(1000F8.0)') NXSEL(J),TEMP2(J)
+        ENDIF       
+      end if
+    end do
+  end if
+
+! Open dynamic temperature target files for blending outlets
+  if (tspltc == '      ON') then
+    do j=1,numtsplt
+      if (tsdynsel(j) == '      ON') then
+        write (segnum,'(i0)') j
+        segnum    = adjustl(segnum)
+        L         = len_trim(segnum)
+        tsseld(j) = 1009+numtempc+j
+        open (tsseld(j),file='dynsplit_selective'//segnum(1:L)//'.npt',status='old')     
+        READ(tsseld(j),'(A1)') CHAR1    
+        IF(CHAR1=='$') DYNTF(J)=.TRUE.
+        IF(DYNTF(J))THEN
+          READ (tsseld(j),'(/)')
+          READ (tsseld(j),*) nxtssel(j), tstemp2(j)
+          tctemp(J)=TEMP2(J)
+          READ (tsseld(j),*) nxtssel(j), tstemp2(j)       
+        ELSE
+          READ (tsseld(j),'(//2F8.0)') nxtssel(j), tstemp2(j)
+          tspltt(j) = tstemp2(j)
+          READ (tsseld(j),'(2F8.0)') nxtssel(j), tstemp2(j)
+        ENDIF    
+      end if
+    end do
+  end if
+
+! Test to see if the user specified inconsistent inputs. If so, stop with an error message.
+  if (tspltc == '      ON') then
+    if (tspltfreq <= 0.0) then                                                                                       
+      write (w2err, '(A)') 'w2_selective.npt TCD ERROR-- Update frequency for temperature blending must be greater than zero.'
+      ERROR_OPEN = .TRUE.                                                                                             
+    end if     
+    do j=1,numtsplt
+      do n=1,nouts(j)-1
+        do nj=n+1,nouts(j)
+          if (jstsplt(j,n) == jstsplt(j,nj)) then
+            write (w2err, '(A,I0)') 'w2_selective.npt TCD ERROR-- Duplicate split outlet numbers in group ', j
+            ERROR_OPEN = .TRUE.     ! will trigger the program to end when this subroutine is completed
+          end if
+        end do
+      end do
+    end do
+    do j=1,numtsplt-1
+      do jj=j+1,numtsplt
+        if ((tstsrt(jj) >= tstsrt(j) .and. tstsrt(jj) <  tstend(j)) .or.  &
+            (tstend(jj) >  tstsrt(j) .and. tstend(jj) <= tstend(j))) then
+          if (tspltcntr(j) .eq. tspltcntr(jj) .and. (tspltcntr(j) .eq. '      WD' .or. tspltjb(j) == tspltjb(jj))) then
+            do n=1,nouts(j)
+              do nj=1,nouts(jj)
+                if (jstsplt(j,n) == jstsplt(jj,nj)) then
+                  write (w2err, '(A,I0,A)') 'w2_selective.npt TCD ERROR-- Split outlet number ', jstsplt(j,n), ' used in more than one group at a time.'
+                  ERROR_OPEN = .TRUE.       ! will trigger the program to end when this subroutine is completed
+                end if
+              end do
+            end do
+          end if
+        end if
+      end do
+    end do
+    do j=1,numtsplt
+      do n=1,nouts(j)
+        if (tsprior(j,n) < -1) then
+          tsprior(j,n) = -1           
+          write (wrn, '(A,I0,A,I0,A)') 'w2_selective TCD: WARNING-- Priority input for outlet ', jstsplt(j,n), &
+                                       ' in group ', j, ' reassigned to -1.'                                          
+          WARNING_OPEN = .TRUE.                                                                                     
+        end if               
+        if (tsminhead(j,n) > 0.0 .and. tsmaxhead(j,n) > 0.0 .and. tsminhead(j,n) > tsmaxhead(j,n)) then
+          write (wrn, '(A,I0,A,I0,A)') 'w2_selective TCD: WARNING-- Minimum and maximum head constraints for outlet ', jstsplt(j,n), ' in group ',  &
+                                        j, ' are such that the outlet cannot ever be used.'
+          WARNING_OPEN = .TRUE.
+        end if
+        if (tsdepth(j,n) > 0.0 .and. tsminhead(j,n) > 0.0 .and. tsdepth(j,n) < tsminhead(j,n)) then
+          write (wrn, '(A,I0,A,I0,A)') 'w2_selective TCD: WARNING-- Depth of floating outlet ', jstsplt(j,n), ' in group ', j,  &
+              ' is shallower than the minimum head constraint.  To honor the head constraint, no flow is possible for that outlet.'
+          WARNING_OPEN = .TRUE.
+        end if
+      end do
+    end do
+
+    if (tempc == '      ON') then
+      do j=1,numtsplt
+        do jj=1,numtempc
+          if ((tctsrt(jj) >= tstsrt(j) .and. tctsrt(jj) <  tstend(j)) .or.  &
+              (tctend(jj) >  tstsrt(j) .and. tctend(jj) <= tstend(j))) then
+            if (tspltcntr(j) .eq. tcntr(jj) .and. (tspltcntr(j) .eq. '      WD' .or. tspltjb(j) == tcjb(jj))) then
+              do n=1,nouts(j)
+                if (jstsplt(j,n) == tcjs(jj)) then
+                  write (w2err, '(A,I0,A)') 'w2_selective TCD ERROR-- Outlet number ',tcjs(jj),' used in tower and blending group at same time.'
+                  ERROR_OPEN = .TRUE.       ! will trigger the program to end when this subroutine is completed
+                end if
+              end do
+            end if
+          end if
+        end do
+      end do
+    end if
+  end if
+
+  if (tempc == '      ON') then
+    do j=1,numtempc-1
+      do jj=j+1,numtempc
+        if ((tctsrt(jj) >= tctsrt(j) .and. tctsrt(jj) <  tctend(j)) .or.  &
+            (tctend(jj) >  tctsrt(j) .and. tctend(jj) <= tctend(j))) then
+          if (tcntr(j) .eq. tcntr(jj) .and. (tcntr(j) .eq. '      WD' .or. tcjb(j) == tcjb(jj))) then
+            if (tcjs(j) == tcjs(jj)) then
+              write (w2err, '(A,I0,A)') 'w2_selective TCD: ERROR-- Tower outlet number ', tcjs(j), ' used more than once for overlapping dates.'
+              ERROR_OPEN = .TRUE.       ! will trigger the program to end when this subroutine is completed
+            end if
+          end if
+        end if
+      end do
+    end do
+  end if
+
+  return
+End subroutine SelectiveInitTCD
+
+!***********************************************************************************************************************************
+!**                                                   S E L E C T I V E  T C D                                                    **
+!***********************************************************************************************************************************
+Subroutine SelectiveTCD
+  Use Selective1TCD; USE MAIN
+  USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINETIC; USE SHADEC; USE EDDY
+  USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
+  IMPLICIT NONE
+
+  integer :: jj, jst, n, nj, num_noflow, ng0, prior1, prior2, ng1max, ng1min, num_left
+  integer :: j2hi, j2lo, j2max, j2min, j2pref
+  real    :: qall, elr, wsel, q_notblended, sum_minfrac0, sum_maxfrac1, sum_maxfrac2, sumfrac
+  real    :: maxelev, minelev, blendfrac, excess_frac, addfrac, maxtemp, mintemp
+  real    :: lastfrac, lastfrac2, ttarg, sumtemp, etemp, etemp1, etemp2, sumelev, elev1, elev2
+
+  INTEGER :: JJW, KK, KS, IFILE, KSTR
+  REAL    :: daytest, TCOMP, TEMPEST, TMOD
+
+  ! Variables for bisection-type gate search
+  REAL     ::	f_high, f_low, high_frac, tm1
+  INTEGER  ::	max_iter, hi_Gate, low_Gate, low_Str, jStr_hi, jStr_low  !, blend_Gate
+
+  ! New variables for blending
+  REAL     :: orig_qstr(NST,NBR)  
+  REAL     :: q_blended, q_Gates, gate_fraction, sum_wgt_Tw
+  REAL     ::	q_hi, q_low, Tw_hi, Tw_low, q_temp
+  REAL     :: theHour
+  INTEGER  ::	iDay, min_BlendingGate, max_BlendingGate, lowBlendGate
+                 
+  ! Variables to put gate variables in arrays
+  INTEGER  ::	iGate, iOut
+  INTEGER  ::	nOutlets(maxGates), jstOut(maxGates,maxouts)
+  REAL     ::	min_flow(maxouts), min_flow1(maxouts), min_flow2(maxouts), Tw_out(maxouts)
+  REAL     ::	etemp_minQ(maxouts), etemp_minQ_1(maxouts), etemp_minQ_2(maxouts)
+  
+  ! Glossary
+  !q_Gate is flow through gates (q_Gates = qall - q_notblended)
+  !q_blended is actual blended flow (q_blended = q_Gates - gate_in_flows)
+  !gate_fraction is sum total blended fraction from previous blending
+  !sum_wgt_Tw is sum of flow-weighted Tw used in adjusting Tw target
+  !nOutlets(iGate) holds number of structures associated with gate
+  !jstsplit(j,jj) holds the place number of the structure in the list of all structures for this simulation (USGS variable)
+  !jstOut(iGate,iOut) holds the jstsplit value for structure, iOut, in gate, iGate
+  !min_flow(maxouts) holds the minimum flow for a structure, converted from input file or calculated from min fraction
+  !Tw_out is the estimated release Tw assuming all blended flow through specified outlet
+  !maxGateNo(j) is the highest gate number listed for blending group, j
+  !nAttempts(maxGates) counts the number of consecutive attempts to use a gate; a condition for making gate available
+
+  str_active = .FALSE.
+  wd_active  = .FALSE.
+  j2pref     = 1
+  NWD = 0			    !	Ignore withdrawals
+  orig_qstr = 0.0 ! Initialize array to temporarily store qstr values when forecast blending using interval averages
+
+  ! Update some date variables and determine which outlets are being actively blended or adjusted.
+  if (tspltc == '      ON') then
+    do j=1,numtsplt
+        if (tsyearly(j) == '     OFF') then
+            daytest = jday
+        else
+            daytest = real(jdayg) + jday - int(jday)
+        end if
+        if (nxtsplit > tstsrt(j) .and. daytest <= tstsrt(j)) then
+            nxtsplit = tstsrt(j)
+        end if
+        if (daytest >= tstsrt(j) .and. daytest < tstend(j)) then
+            do jj=1,nouts(j)
+                if (tspltcntr(j) == '      ST') then
+                    str_active(jstsplt(j,jj),tspltjb(j)) = .TRUE.
+                else if (tspltcntr(j) == '      WD') then
+                    !aeb	Ignore withdrawals
+                end if
+            end do
+            
+            !ZZ, 10/24
+            if (FORECASTING) then !aeb. Accumulate release volumes and averaging interval to average flow for forecast blending calculations
+                do jj=1,nouts(j)
+                    jst = jstsplt(j,jj)
+                    jst_Volume(j,jj) = jst_Volume(j,jj) + qstr(jst,tspltjb(j)) * DLT
+                end do
+                averaging_Interval = averaging_Interval + DLT
+            end if                       
+        end if
+    end do
+  end if
+
+  ! Reset elevations of outlets back to original values outside of control periods
+  do jst=1,nst
+      do jb=1,nbr
+          if (.not. str_active(jst,jb)) estr(jst,jb) = estrsav(jst,jb)
+      end do
+  end do
+
+  ! Check to see if it's time to update temperature targets and flow fractions for blended groups.
+  if (tspltc=='      ON' .and. jday .ge. nxtsplit) then     ! At end of this section: nxtsplit = nxtsplit + tspltfreq
+
+    ! Update the temperature targets
+    do j=1,numtsplt
+        if (tsdynsel(j) == '      ON') then
+            do while (jday >= nxtssel(j))
+                tspltt(j) = tstemp2(j)
+                IF(DYNTF(J))THEN
+                  read (tsseld(j),*) nxtssel(j), tstemp2(j)
+                ELSE
+                  read (tsseld(j),'(2F8.0)') nxtssel(j), tstemp2(j)
+                END IF
+            end do
+        end if
+    end do
+
+    do j=1,numtsplt                                                            ! Cycle through all blending groups.
+        qall    = 0.0                                                          ! sum up all the flows
+        sumfrac = 0.0                                                          ! sum of flow fraction multipliers
+        do jj=1,nouts(j)
+            if (tspltcntr(j) == '      ST') then
+                qall    = qall    + qstr(jstsplt(j,jj),tspltjb(j))              !aeb   This is for test below.
+                sumfrac = sumfrac + qstrfrac(jstsplt(j,jj),tspltjb(j))          !aeb   qstrfrac() is either uninitialized or carried over from previous time step
+            end if
+        end do
+        if (tsyearly(j) == '     OFF') then
+            daytest = jday
+        else
+            daytest = real(jdayg) + jday - int(jday)
+        end if
+
+        ! Do blending calculations if date is in correct window or the window was just entered.
+        ! If flows are zero and flow fractions are already initialized, then leave everything alone.
+        if (daytest >= tstsrt(j) .and. daytest < tstend(j) .and.  &
+            (qall > 0.0 .or. sumfrac < 0.001 .or. daytest < tstsrt(j) + tspltfreq)) then
+  
+          if (tspltcntr(j) == '      ST') then                                 ! Do structures only
+            jb = tspltjb(j)                                                    ! set branch index
+            do jw=1,nwb                                                        ! set waterbody index
+                if (jb >= bs(jw) .and. jb <= be(jw)) exit
+            end do
+            no_flow(j,:) = .FALSE.
+            num_noflow   = 0
+            do jj=1,nouts(j)                                            
+                jst          = jstsplt(j,jj)
+                elr          = sina(jb) * dlx(ds(jb)) * 0.5                      
+                wsel         = elws(ds(jb)) - elr                                ! compute water-surface elevation
+                estr(jst,jb) = estrsav(jst,jb)                                   ! reset outlet elevation to original
+                if (tstype(j,jj) == "FLOAT") then
+                    estr(jst,jb) = wsel - tsdepth(j,jj)
+                else if (estr(jst,jb) > wsel) then
+                    if (elcontspl(j) == '     OFF') then
+                        no_flow(j,jj) = .TRUE.                                    ! no flow-- high and dry
+                        num_noflow    = num_noflow + 1
+                    else
+                        estr(jst,jb) = wsel                                       ! poor man's floating outlet
+                    end if
+                end if
+                if (.not. no_flow(j,jj) .and. tsminhead(j,jj) > 0.0 .and. wsel - estr(jst,jb) < tsminhead(j,jj)) then
+                    no_flow(j,jj) = .TRUE.                                         ! minimum head criterion not met -- no flow
+                    num_noflow    = num_noflow + 1
+                end if
+                if (.not. no_flow(j,jj) .and. tsmaxhead(j,jj) > 0.0 .and. wsel - estr(jst,jb) > tsmaxhead(j,jj)) then
+                    no_flow(j,jj) = .TRUE.                                         ! maximum head criterion exceeded -- no flow
+                    num_noflow    = num_noflow + 1
+                end if
+                
+                !	Check to see if we're within gate restriction period
+                if(.not. no_flow(j,jj) .and. tsminjday(j,jj) > 0 .and. jday < tsminjday(j,jj)) then
+                    no_flow(j,jj) = .TRUE.                                          !aeb	Too soon to open gate -- no flow
+                    num_noflow    = num_noflow + 1
+                end if
+                if(.not. no_flow(j,jj) .and. tsmaxjday(j,jj) > 0 .and. jday > tsmaxjday(j,jj)) then
+                    no_flow(j,jj) = .TRUE.                                          !aeb	Too late to open gate -- no flow
+                    num_noflow    = num_noflow + 1
+                end if
+
+                do k=ktwb(jw),kb(ds(jb))
+                    if (el(k,ds(jb))-elr < estr(jst,jb)) exit
+                end do
+                kstrsplt(jj)     = min(k-1,kb(ds(jb)))
+                qstrfrac(jst,jb) = 0.0                                              ! initialize flow fractions
+            end do
+
+            !ZZ, 10/24
+            if (FORECASTING) then              
+                ! Keep track of original structure flows to re-set after establishing blending fractions from interval averages
+                orig_qstr = qstr
+
+                ! Set flows to interval averages for blending calculations
+                qall = 0.0
+                do jj=1,nouts(j)
+                    jst = jstsplt(j,jj)
+                    qstr(jst,jb) = jst_Volume(j,jj)/averaging_Interval
+                    qall = qall + qstr(jst,jb)
+                end do
+            end if            
+             
+            ! Sum and set flow fractions for nonblended flows.  Outlets with a priority of -1 get used, but are not blended
+            ng0 = 0
+            q_notblended = 0.0
+            do jj=1,nouts(j)
+                jst = jstsplt(j,jj)
+                if (.not. no_flow(j,jj) .and. tsprior(j,jj) == -1) then
+                    ng0 = ng0 + 1
+                    nout0(ng0) = jj
+                    if (qstr(jst,jb) > tsmaxflow(j,jj) .and. tsmaxflow(j,jj) > 0.0) then  !aeb  Shouldnt we just set qstr = tsmaxflow?
+                        q_notblended = q_notblended + tsmaxflow(j,jj)                     !aeb  qall should be reduced also
+                        qstrfrac(jst,jb) = tsmaxflow(j,jj) / qall
+                    else if (qall > 0.0) then
+                        q_notblended = q_notblended + qstr(jst,jb)
+                        qstrfrac(jst,jb) = qstr(jst,jb) / qall
+                    end if
+                end if
+            end do  
+            
+            q_Gates = qall - q_notblended		!aeb	Total flow through gates
+            
+            !***********************************************************************************************************************************
+            write(7778,'(4(f10.3,","))') jday, q_Gates, q_notblended, averaging_Interval
+            ! Re-initialize release volumes and interval time
+            jst_Volume = 0.0
+            averaging_Interval = 0.0            
+                        
+            ! Begin the blending decisions.            
+            ! No usable outlets.  All flow fractions remain at zero.
+            if (nouts(j) == num_noflow) then
+                write (wrn,'(A,I0,A,F0.3)') 'Warning-- All outlets dry or unusable for group ', j, ' at day ', jday
+                WARNING_OPEN = .TRUE.
+
+            ! Only nonblended outlets.
+            else if (nouts(j) == ng0) then
+                write (wrn,'(A,I0,A,F0.3)') 'Warning-- Only nonblended outlets present in group ', j, ' at day ', jday
+                WARNING_OPEN = .TRUE.
+            else    !aeb	Blend gates 
+              
+                !***********************************************************************************************************************************
+                !ZZ 10/24 
+                ! Initialize my arrays 
+                nOutlets=0
+                jstOut=0
+                min_flow=0.0
+                min_flow1=0.0
+                min_flow2=0.0
+
+                ! Convert minfracs to min flows.  These are only applied to blended flows
+                do jj=1,nouts(j)
+                    jst = jstsplt(j,jj)
+                    if (tsminfrac(j,jj) >= 0.0) then
+                        min_flow1(jst) = tsminfrac(j,jj)*q_Gates
+                    else
+                        min_flow1(jst) = -tsminfrac(j,jj)           !tsminfrac is given as a negative flow
+                    end if
+                    if (tsminfrac2(j,jj) >= 0.0) then
+                        min_flow2(jst) = tsminfrac2(j,jj)*q_Gates
+                    else
+                        min_flow2(jst) = -tsminfrac2(j,jj)           !tsminfrac is given as a negative flow
+                    end if
+                end do
+            
+                ! Use priorities to identify outlets associated with gates.  Do this here instead of at INIT because "no_flow" may have changed   
+                max_BlendingGate = 0
+                min_BlendingGate = maxGateNo(j)
+                do jj=1,nouts(j)           
+                    if (.not. no_flow(j,jj) .and. tsprior(j,jj) > 0) then
+                        iGate = tsprior(j,jj)
+                        nOutlets(iGate) = nOutlets(iGate) + 1
+                        jstOut(iGate,nOutlets(iGate)) = jstsplt(j,jj)
+                        if (tsprior(j,jj) > max_BlendingGate) max_BlendingGate = tsprior(j,jj)    !aeb Get highest gate number for this blending group
+                        if (tsprior(j,jj) < min_BlendingGate) min_BlendingGate = tsprior(j,jj)    !aeb Get lowest gate number for this blending group
+                    endif                
+                end do 
+
+                ! Check current gate(s) in case they are no longer available
+                if(nOutlets(current_low_Gate) == 0) then
+                    do kk = min_BlendingGate, max_BlendingGate
+                        if(nOutlets(kk) > 0) then
+                            current_low_Gate = kk                   !aeb  Set highest gate with available outlets as low gate
+                            current_hi_Gate = current_low_Gate      !aeb  Set hi gate equal to low gate
+                            exit
+                        end if
+                    end do
+                end if
+                if(nOutlets(current_hi_Gate) == 0) current_hi_Gate = current_low_Gate   !aeb  Set hi gate equal to low gate              
+                !***********************************************************************************************************************************
+                           
+                ! Set parameters for downstream_withdrawal_estimate
+                id = ds(jb)                   ! needed for downstream_withdrawal_estimate
+                kt = ktwb(jw)                 ! needed for downstream_withdrawal_estimate
+
+                ! Get weighted blend of all nonblended release temperatures and adjust Tw target
+                ttarg = tspltt(j)
+                if (q_notblended > 0.0) then
+                    sum_wgt_Tw = 0.0
+                    do n=1,ng0
+                        jj = nout0(n)
+                        jst = jstsplt(j,jj)
+                        if (qstr(jst,jb) > 0.0) then
+                            call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))
+                        else
+                            etemp = 0.0             ! uses temperature at outlet elevation if no flow (typ.): etemp = t2(kstrsplt(nout0(n)),ds(jb))
+                        end if
+                        sum_wgt_Tw = sum_wgt_Tw + qstr(jst,jb) * etemp
+                    end do
+                    ttarg = (ttarg * qall - sum_wgt_Tw) / q_Gates  ! New temperature target for blended releases
+                end if
+                
+!*********************************** Find gates that bracket target **********************************
+                min_flow = 0.0
+                etemp_minQ = 0.0
+                etemp_minQ_1 = 0.0
+                etemp_minQ_2 = 0.0
+                Tw_out=0.0
+                
+                low_Gate = 0
+                low_Str = 0
+                hi_Gate = 0
+                
+                ! Initialize all gate flows to zero. (This removes carry-over flows in outlets that now have no flow.)
+                do jj=1,nouts(j)
+                    if (tsprior(j,jj) /= -1) then
+                        jst = jstsplt(j,jj)
+                        qstr(jst,jb) = 0.0 
+                    endif                    
+                end do
+                                
+               !*** Get Tw_out associated with min flows at each structure **********************************
+                do iGate = min_BlendingGate, max_BlendingGate               
+                    ! Put min flow1 into every outlet and get Tw estimate for each.  
+                    do iOut = 1, nOutlets(iGate)    
+                        jst = jstOut(iGate, iOut)
+                        qstr(jst,jb) = min_flow1(jst)
+                        if (qstr(jst,jb) > 0.0) then
+                            call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))       !aeb Uses qstr(flow) not qstrfrac
+                        else
+                            etemp = 0.0         
+                        end if 
+                        etemp_minQ_1(jst) = etemp
+                    end do
+                        
+                    if(min_BlendingGate /= max_BlendingGate) then          ! Might blend 2 gates
+                        ! Put min flow2 into every outlet and get Tw estimate for each. For use when iGate > 1 and iOut == 1
+                        do iOut = 1, nOutlets(iGate)
+                            jst = jstOut(iGate, iOut)
+                            qstr(jst,jb) = min_flow2(jst)
+                            if (qstr(jst,jb) > 0.0) then
+                                call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))       !aeb Uses qstr(flow) not qstrfrac
+                            else
+                                etemp = 0.0         
+                            end if 
+                            etemp_minQ_2(jst) = etemp
+                        end do
+                    end if
+                end do
+
+!*********************************** If Forecasting, establish gates and outlets for blending (at tspltfreq frequency) *************
+                if (FORECASTING) then 
+                    iDay = INT(JDay)                                       
+                        ! Find low gate and low opening to blend            
+                        do iGate = min_BlendingGate, max_BlendingGate
+                            do iOut = 1, nOutlets(iGate)    ! Get weighted Tw for each opening in this gate, assuming min flows at all other openings.
+                                sum_wgt_Tw = 0.0            ! Reset for each opening
+                                q_blended = q_Gates         ! Reset for each opening
+                                
+                                if (min_BlendingGate == max_BlendingGate) then  ! Using one gate, so use min flow1 values
+                                    min_flow = min_flow1
+                                    etemp_minQ = etemp_minQ_1                           
+                                else if(iGate == 1 .or. iOut > 1) then  ! Using one gate, so use min flow1 values
+                                    min_flow = min_flow1
+                                    etemp_minQ = etemp_minQ_1                               
+                                else if(nOutlets(iGate-1) == 0) then    ! No outlets available in gate above.  Use min flow1 values
+                                    min_flow = min_flow1
+                                    etemp_minQ = etemp_minQ_1                                
+                                else                              ! Special case: (2 gates .and. iGate > 1 .and. iOut == 1 .and. nOutlets(iGate-1) > 0)
+                                    min_flow = min_flow2          ! If top of gate and there is a gate above, account for gate above used in blending
+                                    etemp_minQ = etemp_minQ_2     ! Using two gates, so use min flow2 values                                   
+                                    do kk = 1, nOutlets(iGate-1)  ! Remove min flows of gate above from blended flow and sum Tw effect 
+                                        jst = jstOut(iGate-1, kk)
+                                        q_blended = q_blended - min_flow(jst)
+                                        sum_wgt_Tw = sum_wgt_Tw + etemp_minQ(jst)*min_flow(jst)
+                                    end do
+                                end if
+                            
+                                ! Remove min flows at this gate from blended flow
+                                do kk = 1, nOutlets(iGate)
+                                    jst = jstOut(iGate, kk)
+                                    q_blended = q_blended - min_flow(jst)
+                                end do
+                                ! Blended flow is now reduced by sum of min flows at all openings and Tw_out from second gate (if there is one) is accounted for
+                            
+                                ! Now, find low gate and structure.  Calculate weighted Tw for each opening of this gate and test against Tw target
+                                do kk = 1, nOutlets(iGate)                                
+                                    ! Set flow at trial opening, iOut, to (blended + min) and estimate Tw.  Use min flow etemps for all other openings
+                                    jst = jstOut(iGate, kk)
+                                    if(kk == iOut) then
+                                        qstr(jst,jb) = q_blended + min_flow(jst) 
+                                        if (qstr(jst,jb) > 0.0) then
+                                            call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))  ! Uses qstr(flow) not qstrfrac
+                                        else
+                                            etemp = 0.0         
+                                        end if   
+                                        sum_wgt_Tw = sum_wgt_Tw + etemp * qstr(jst,jb)
+                                    else
+                                        qstr(jst,jb) = min_flow(jst)    ! Set flow to min for debugging clarity
+                                        sum_wgt_Tw = sum_wgt_Tw + etemp_minQ(jst) * min_flow(jst)
+                                    end if
+                                end do
+                            
+                                jst = jstOut(iGate, iOut)
+                                Tw_out(jst) = sum_wgt_Tw / q_Gates      ! Weighted temperature of outlet, iOut, in iGate assuming it gets all but min flows
+                                                                
+                                ! If Tw_target is greater than Tw_out then we can meet target.  LWR_GATE raises target to bias to higher gates.
+                                if(Tw_out(jst) <= (ttarg + LWR_GATE)) then 
+                                    low_Gate = iGate
+                                    low_Str = iOut
+                                    exit
+                                end if
+                            end do
+                            if(low_Str > 0) exit                        ! Opening found; etemp_minQ and min_flow are set for each opening
+                        end do                        
+
+                        ! Set gates
+                        if(low_Str == 0) then                           ! No opening found. Target Tw is less than any opening. Use lowest available gate.  
+                            low_Gate = max_BlendingGate
+                        else if(low_Str == 1 .and. low_Gate > 1) then   ! Top of gate. Set higher gate if available for blending  
+                            if(nOutlets(low_Gate - 1) > 0) hi_Gate = low_Gate - 1                           
+                        end if  
+                        if (hi_Gate == 0)  hi_Gate = low_Gate           ! No hi gate.  Blending will be done within a gate
+                                                   
+                        ! Write current and attempted gate combinations
+                        write(7777,'(f8.3,",",4(I5,","))') jday, current_hi_Gate, current_low_Gate, hi_Gate, low_Gate
+
+                        ! Record attempt
+                        iAttempt = iAttempt + 1
+                        lowAttempt(iAttempt) = low_Gate
+                        hiAttempt(iAttempt) = hi_Gate
+                        attempt_offLimits = .FALSE.
+                                                
+                        ! Check for consecutive attempts
+                        if(iAttempt >= N_ATTEMPTS) then                           
+                            do i = 1, N_ATTEMPTS-1
+                                if(low_Gate /= lowAttempt(iAttempt-i) .or. hi_Gate /= hiAttempt(iAttempt-i)) then
+                                    attempt_offLimits = .TRUE.
+                                    exit
+                                end if
+                            end do
+                        else
+                            attempt_offLimits = .TRUE.
+                        end if
+                        
+                        ! Check for off-limits gates      
+                        if(offLimits_low(low_Gate) .or. offLimits_hi(hi_Gate)) attempt_offLimits = .TRUE.
+                                                
+                        ! Set current gate combination
+                        if(attempt_offLimits) then     
+                            ! Don't change current gates but ensure that current low gate still has outlets available
+                            if(nOutlets(current_low_Gate) == 0) then
+                                current_low_Gate = min(current_low_Gate + 1, max_BlendingGate)     ! This ensures that following "do loop" works (e.g., if max_BlendingGate < current_low_Gate + 1)
+                                do kk = current_low_Gate, max_BlendingGate  ! Check for outlets
+                                    if(nOutlets(kk) > 0) then
+                                        current_low_Gate = kk               ! Set highest gate with outlets as low gate
+                                        exit
+                                    end if
+                                end do
+                            end if
+                            
+                            ! Ensure that current hi gate has outlets available
+                            if(nOutlets(current_hi_Gate) == 0) current_hi_Gate = current_low_Gate
+                        else
+                            current_low_Gate = low_Gate
+                            current_hi_Gate = hi_Gate
+                        end if
+                       
+                        ! If one level open, check for min submergence
+                        if(current_low_Gate == current_hi_Gate) then
+                            if(wsel < minWSE(j,current_hi_Gate)) current_low_Gate= min(current_hi_Gate + 1, max_BlendingGate)
+                        endif
+                        
+                        !*** Set off-limits gates based on final gate combination     
+                        if(jday > BEGIN_HI .and. jday < END_HI) then                        ! Check to see if we're within gate restriction period
+                            HI_GATE_RESTRICTIONS = .TRUE.
+                            if (current_low_Gate > 1) then                                  ! For all gates below top gate:
+                                offLimits_low(current_low_Gate-1) = .TRUE.                  ! Never allow gate above to be used exclusively
+                                if (current_hi_Gate == current_low_Gate) offLimits_hi(current_low_Gate-1) = .TRUE.  !If only low gate selected, set gate above off limits for future blending
+                            end if
+                        else if (HI_GATE_RESTRICTIONS) then                                 ! On END_HI, reset all gates for this blending period to OK
+                            do iGate = minGateNo(j), maxGateNo(j)
+                                offLimits_low(iGate) = .FALSE.
+                                offLimits_hi(iGate) = .FALSE.
+                            end do
+                            HI_GATE_RESTRICTIONS = .FALSE.
+                        end if                                                
+                end if         ! End of find gates that bracket target 
+
+!*********************************** Set gates for blending (every tspltfreq interval) **********************************  
+                if (FORECASTING) then 
+                    low_Gate = current_low_Gate
+                    hi_Gate = current_hi_Gate
+                else                            
+                    if(min_BlendingGate == max_BlendingGate) then
+                        low_Gate = max_BlendingGate
+                        hi_Gate = low_Gate
+                    else
+                        low_Gate = max_BlendingGate      ! Should only be 2 gates but, if more, always select bottom 2
+                        hi_Gate  = low_Gate - 1          ! If here, min_BlendingGate /= max_BlendingGate and therefore low_Gate > 1
+                        if(nOutlets(hi_Gate) == 0) hi_Gate  = low_Gate
+                    end if
+                end if
+                
+!*********************************** Given gates, set min flows and get Tw associated with min flows at each opening **********************************                        
+                !*** Get Tw_out associated with min flows          
+                etemp_minQ = 0.0
+                q_blended = q_Gates
+            
+                if(hi_Gate == low_Gate) then          ! Blend within 1 gate
+                    min_flow = min_flow1
+                    etemp_minQ = etemp_minQ_1         !ZZ 10/24
+                else
+                    min_flow = min_flow2
+                    etemp_minQ = etemp_minQ_2
+                end if
+            
+                do iGate = hi_Gate, low_Gate          ! Put min flow into every outlet, get Tw estimate for each, reduce blended flow by min flows.            
+                    do iOut = 1, nOutlets(iGate)    
+                        jst = jstOut(iGate, iOut)
+                        qstr(jst,jb) = min_flow(jst)
+                        q_blended = q_blended - qstr(jst,jb)                  
+                    end do                        
+                end do
+                ! Blended flow is now reduced by sum of min flows at all openings
+
+!*********************************** Find low gate and low opening to blend **********************************
+                lowBlendGate = 0     !ZZ 10/24
+                low_Str = 0
+                                    
+                do iGate = hi_Gate, low_Gate            ! Cyle through all openings to find low gate and structure.           
+                    do iOut = 1, nOutlets(iGate)        ! Get weighted Tw for each opening in this gate, assuming min flows at all other openings and test against Tw target
+                        sum_wgt_Tw = 0.0
+                            
+                        do i = hi_Gate, low_Gate        !Set flow at trial opening, iOut, to (blended + min) and estimate Tw.  Use min flow etemps for all other openings       
+                            do kk = 1, nOutlets(i)                          
+                                jst = jstOut(i, kk)  
+
+                                if(i == iGate .and. kk == iOut) then
+                                    qstr(jst,jb) = q_blended + min_flow(jst) 
+                                    if (qstr(jst,jb) > 0.0) then
+                                        call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))       !aeb Uses qstr(flow) not qstrfrac
+                                    else
+                                        etemp = 0.0         
+                                    end if   
+                                    sum_wgt_Tw = sum_wgt_Tw + etemp * qstr(jst,jb)
+                                else
+                                    qstr(jst,jb) = min_flow(jst)    !Set flow to min for debugging clarity
+                                    sum_wgt_Tw = sum_wgt_Tw + etemp_minQ(jst) * min_flow(jst)                                 
+                                end if
+                            end do
+                        end do
+                            
+                        jst = jstOut(iGate, iOut)
+                        Tw_out(jst) = sum_wgt_Tw / q_Gates          ! Weighted temperature of outlet, iOut, in iGate assuming it gets all but min flows
+                        if(Tw_out(jst) <= (ttarg)) then             ! Don't use LWR_GATE to test here.  We've already chosen gates.  
+                            lowBlendGate = iGate                    ! lowBlendGate is the gate containing the low-blending structure. It may not be low_Gate.
+                            low_Str = iOut
+                            exit
+                        end if
+                    end do
+                    if(low_Str > 0) exit                            ! Opening found; etemp_minQ and min_flow are set for each opening
+                end do                        
+
+!*********************************** Set structures (jstr) to blend **********************************                                     
+                if(low_Str == 0) then                           !No opening found. Target Tw is less than any opening. Use lowest available opening and no blending.                         
+                    jStr_low = jstOut(low_Gate, nOutlets(low_Gate))
+                    jStr_hi = 0                                 !No blending
+                else 
+                    jStr_low = jstOut(lowBlendGate, low_Str)
+                    if(low_Str == 1) then                       !Top of gate
+                        if(lowBlendGate == low_Gate .and. hi_Gate /= low_Gate) then
+                            jStr_hi = jstOut(hi_Gate, nOutlets(hi_Gate))
+                        else
+                            jStr_hi = 0                         !No blending
+                        end if
+                    else                                        !Within gate. There is an opening at this gate (level) for blending.
+                        jStr_hi = jstOut(lowBlendGate, low_Str - 1)
+                    end if
+                end if                    
+                
+                !ZZ 10/24
+                if(jStr_low == jst_TCDdown(j)) then       !TCDdown outlet (lowest outlet in side gates) selected for blended release.  Make adjustments.
+                    jStr_low = jstOut(TCD_DOWN_GATE, nOutlets(TCD_DOWN_GATE)-1)     !Select outlet above
+                    jStr_hi = 0                                                     !No blending.
+                end if                
+                
+                ! Now we have structures to blend
+                ! End find gates and structures that bracket target
+                                                   
+                !aeb	Re-initialize all gate flows to zero for debuging clarity.
+                do iGate = minGateNo(j), maxGateNo(j)
+                    do iOut = 1, nOutlets(iGate)
+                        jst = jstOut(iGate, iOut)
+                        qstr(jst,jb) = 0.0                   
+                    end do
+                end do
+
+                !aeb Set min flows for all openings in blending gates and remove them from blended flow.  Adjust Tw target.
+                q_blended = q_Gates
+                sum_wgt_Tw = 0.0
+                
+                ! Remove min flows at all outlets from blended flow. Get sum_wgt_Tw for all non-blended outlets in blending gates
+                do iGate = hi_Gate, low_Gate
+                    do kk = 1, nOutlets(iGate)
+                        jst = jstOut(iGate, kk)
+                        if(jst /= jStr_low .and. jst /= jStr_hi) then
+                            q_blended = q_blended - min_flow(jst)
+                            qstr(jst,jb) = min_flow(jst)
+                            sum_wgt_Tw = sum_wgt_Tw + etemp_minQ(jst)*min_flow(jst)  !Check.
+                        end if
+                    end do
+                end do
+                ! Blended flow is now reduced by sum of min flows at all non-blending openings
+
+                ! Calculate new temperature target for blended releases, factoring in min flows in non-blending openings
+                ttarg = (ttarg * q_Gates - sum_wgt_Tw) / q_blended          
+
+!*********************************** Apportion blending flow using a bisection method                
+                If (jStr_hi > 0) then                                               !There is blending
+                    q_blended = q_blended - min_flow(jStr_hi) -min_flow(jStr_low)   ! Remove min flows
+                    max_iter = 6        ! Max iterations for blending search; max_iter=5 narrows search to a 3% interval
+                    f_high = 1			                                        
+                    f_low = 0
+                
+                    Do i=1, max_iter                                                ! Search using a bisection-type method
+	                    high_frac = (f_high+f_low)/2		
+	                    q_hi = q_blended*high_frac + min_flow(jStr_hi)                ! Add min flows back to blended flow
+	                    q_low = q_blended*(1-high_frac) + min_flow(jStr_low)
+                            
+	                    ! Get Tw high	
+                        if(q_hi > 0.) then
+                            jst = jStr_hi
+                            qstr(jst,jb) = q_hi
+                            call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))     !aeb Uses qstr (flow)
+                            Tw_hi = etemp                          
+                        else
+                            Tw_hi = 0.0
+                        end if
+                            
+	                    ! Get Tw low
+                        if(q_low > 0.) then
+                            jst = jStr_low
+                            qstr(jst,jb) = q_low
+                            call downstream_withdrawal_estimate(jst,etemp,estr(jst,jb))     !aeb Uses qstr (flow)
+                            Tw_low = etemp								  
+                        else
+                            Tw_low = 0.0
+                        end if
+
+                        ! Check for convergence to Tw target
+	                      tm1 = (q_hi*Tw_hi + q_low*Tw_low)/(q_hi + q_low)	
+                            
+                        if(abs(ttarg-tm1) <= tsconv) then
+                            exit
+	                    else if(tm1 > ttarg) then		
+		                    f_high= high_frac	
+	                    else	! (Tw_trial <= Tw_target) 	
+		                    f_low= high_frac	
+	                    endif		
+                    end do	
+                    
+                    ! If forecasting and solution not converged, check to see if there is a solution that is hotter but closer to Tw target
+                    ! Two conditions may be better:
+                    !   1) Blending between top of low gate and bottom of hi gate.  Try hi gate only with all blended flow through lowest structure of hi gate.
+                    !   2) Blending between 1st and 2nd outlet of low gate. Try top outlet of low gate and min flows in hi gate and other low-gate outlets.
+                    ! Don't do this here. Add back in at a later date if it works with new gate logic (e.g., gates are pre-selected at 8 am).
+                    ! I don't think this is useful with current logic because it might work for daily setting of gates, but the rest of the day will be off a little anyway.
+                    ! Also, new gate logic specifies gates (based on consecutive attempts and off-limits), so gates can't be eliminated at this point.
+
+                    jst = jStr_hi
+                    qstr(jst,jb) = q_hi
+                    
+                    jst = jStr_low
+                    qstr(jst,jb) = q_low
+                else
+                    ! No blending.
+                    jst = jStr_low
+                    qstr(jst,jb) = q_blended                   
+                end if
+
+                ! Set final flow fractions.  All flow now is either unblended (untouched) or blended between 2 outlets (with min flows in associated outlets)
+                do jj=1,nouts(j)
+                    jst = jstsplt(j,jj)
+                    qstrfrac(jst,jb) = qstr(jst,jb)/qall
+                end do                
+            end if  
+            
+            if (FORECASTING) qstr = orig_qstr                   ! Re-set flows to non-averaged values
+            
+          end if                                                !aeb End structures and withdrawals
+      end if                                                    !aeb end of this blending group
+    end do                                                      !aeb end cycle through each blending group, numtsplt
+
+    nxtsplit = nxtsplit + tspltfreq                     
+    ! After blending, both blended and non-blended flows for structures are set.  Non-blended flows have not been changed.
+  end if
+  
+  ! Use the flow fractions to set flows in blended groups.    
+  if (tspltc=='      ON') then                                            !aeb  Search for current blending period
+      do j=1,numtsplt                                                     !aeb  We have daytest already, don't we?
+          if (tsyearly(j) == '     OFF') then
+              daytest = jday
+          else
+              daytest = real(jdayg) + jday - int(jday)
+          end if
+            
+          if (daytest >= tstsrt(j) .and. daytest < tstend(j)) then        !aeb This selects only current blending period
+              ! Do structures first
+              if (tspltcntr(j) == '      ST') then                 
+                  q_Gates = 0.0
+                  gate_fraction = 0.0
+                  qall = 0.0
+
+                  ! Sum current flows for blended outlets and prior blended flow fractions
+                  do jj=1,nouts(j)
+                      jst = jstsplt(j,jj)          !ZZ 10/24
+                      if(tsprior(j,jj) /= -1) then                          
+                          q_Gates = q_Gates + qstr(jst,tspltjb(j))                    
+                          gate_fraction = gate_fraction + qstrfrac(jst,tspltjb(j))      
+                      endif
+                  end do
+                    
+                  ! Set flows for blended outlets based on prior flow fractions and sum all flows. Honor the maximum flow
+                  do jj=1,nouts(j)            
+                      jst = jstsplt(j,jj)
+                      if(tsprior(j,jj) /= -1) then                ! Set new flow only for blended outlets
+                          jst = jstsplt(j,jj)
+                          qstr(jst,tspltjb(j)) = 0.0
+                          if(gate_fraction > 0.0) qstr(jst,tspltjb(j)) = qstrfrac(jst,tspltjb(j))*q_Gates/gate_fraction   ! In case gate_fraction == 0?
+                      end if
+                      qall = qall + qstr(jstsplt(j,jj),tspltjb(j))                        
+                  end do   
+                    
+                  ! Set new flow fractions
+                  do jj=1,nouts(j)
+                      jst = jstsplt(j,jj)
+                      qstrfrac(jst,tspltjb(j)) = 0.0
+                      if (qall > 0.0) qstrfrac(jst,tspltjb(j)) = qstr(jst,tspltjb(j))/qall   ! In case qall == 0?
+                      if (tsmaxflow(j,jj) > 0.0 .and. qstr(jst,tspltjb(j)) > tsmaxflow(j,jj)) qstr(jst,tspltjb(j)) = tsmaxflow(j,jj)
+                  end do
+              end if
+          end if
+      end do
+  end if      ! End setting flows in blended groups        
+
+  ! Output some results.
+  if (jday.ge.nxtstr) then
+        nxtstr = nxtstr+tfrqtmp
+        ifile=1949
+        do jb=1,nbr
+            if (nstr(jb) > 0) then
+                ifile=ifile+1
+                write (ifile,'(f10.4,",",<nstr(jb)>(f10.2,","),<nstr(jb)>(f10.2,","),<nstr(jb)>(f10.2,","))')  &
+                              jday,(tavg(i,jb),i=1,nstr(jb)),(qstr(i,jb),i=1,nstr(jb)),(estr(i,jb),i=1,nstr(jb))    
+            end if
+        end do
+
+        ! computing reservoir volume and volume below 'tempcrit'
+        volmc=0.0
+        volm=0.0
+        DO JW=1,NWB
+            KT = KTWB(JW)
+            DO JB=BS(JW),BE(JW)
+                DO I=cus(jb),ds(jb)
+                    volm(jw) = volm(jw) +BH2(KT,I)*DLX(I)
+                    DO K=kt+1,kb(i)
+                        volm(jw) = volm(jw)+BH(K,I)*DLX(I)
+                    END DO
+                    do kk=1,tempn
+                        if(t2(kt,i).le.tempcrit(jw,kk))volmc(jw,kk) = volmc(jw,kk)+BH2(KT,I)*DLX(I)
+                        DO K=kt+1,kb(i)
+                            if(t2(k,i).le.tempcrit(jw,kk))volmc(jw,kk) = volmc(jw,kk)+BH(K,I)*DLX(I)
+                        END DO
+                    end do
+                end do
+            end do
+            ifile=ifile+1
+            write(ifile,'(f8.2,100(g12.4,g12.4))') jday,volm(jw),(volmc(jw,kk), kk=1,tempn)
+        end do
+  end if      
+  return
+
+  ENTRY DEALLOCATE_SELECTIVETCD
+    DEAllocate (tcnelev,tcjb,tcjs, tcelev,tctemp,tctend,tctsrt,ncountc,tciseg,tcklay,tcelevcon,elcontspl)
+    DEAllocate (tspltjb,tspltt,nouts,jstsplt,kstrsplt,tcyearly, tcntr,tspltcntr)
+    DEallocate (volm,ncountcw,qwdfrac,qstrfrac)
+    DEallocate (tempcrit,volmc,DYNSEL,SELD,NXSEL,TEMP2,TSYEARLY,TSTEND,TSTSRT)
+    deallocate (tsdepth, tstype, tsminfrac, tsprior, tsminhead, tsmaxhead, tsmaxflow, no_flow)
+    deallocate (tsdynsel, tsseld, nxtssel, tstemp2, ewdsav, estrsav, share_flow, wd_active, str_active)
+    deallocate (nout0, nout1, nout2, minfrac1, minfrac2, maxfrac1, maxfrac2, splt2t, splt2e)
+    DEALLOCATE (DYNSF, DYNTF)    !ZZ 8/24
+  RETURN
+    
+End Subroutine SelectiveTCD  

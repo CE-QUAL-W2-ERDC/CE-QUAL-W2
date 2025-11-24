@@ -323,6 +323,7 @@ USE GLOBAL;USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINET
             CONSTRICTION(:,ISEG)=.TRUE.
         ENDDO
         ENDIF
+        CLOSE(CON)   ! SR 7/2024
     ENDIF
     
   
@@ -536,7 +537,7 @@ USE GLOBAL;USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINET
       DO I=IU-1,ID
         DO K=1,KMX-1
           AVH2(K,I) = (H2(K,I) +H2(K+1,I)) *0.5
-          AVHR(K,I) =  H2(K,I)+(H2(K,I+1)-H2(K,I))/(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                                  !SW 07/29/04
+          AVHR(K,I) =  H2(K,I)+(H2(K,I+1)-H2(K,I))*DLX(I)/(DLX(I)+DLX(I+1))                                  !SW 07/29/04   7/9/2024
         END DO
         AVH2(KMX,I) = H2(KMX,I)
         DO K=1,KMX
@@ -576,7 +577,7 @@ USE GLOBAL;USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINET
     END DO
   END DO
   H1   = H2
-  BH1  = BH2
+  BH1  = BH2; BHRATIO=1.0
   BHR1 = BHR2
   AVH1 = AVH2
 
