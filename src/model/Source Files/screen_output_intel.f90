@@ -8,7 +8,7 @@ INTEGER*4 FUNCTION WINMAIN (HINSTANCE,HPREVINSTANCE,LPSZCMDLINE,NCMDSHOW)
   !DEC$ ELSE
   !DEC$ ATTRIBUTES STDCALL, ALIAS: 'WinMain':: WinMain
   !DEC$ ENDIF
-  USE DFLIB; USE DFWIN, RENAMED => DLT; USE DFLOGM
+  USE DFLIB; USE IFWIN, RENAMED => DLT; USE IFLOGM
   INTEGER(4) :: HINSTANCE, HPREVINSTANCE, LPSZCMDLINE, NCMDSHOW
 
   CALL W2_DIALOG
@@ -21,7 +21,7 @@ END FUNCTION WINMAIN
 !***********************************************************************************************************************************
 
 subroutine W2_DIALOG
-  USE DFLOGM; USE MSCLIB
+  USE IFLOGM; USE MSCLIB          !DFLOGM
   INTEGER       :: RESULT
   LOGICAL       :: RSO_EXISTS=.FALSE., RESTARTED, RESULTLOG
   TYPE (DIALOG) :: DLG
@@ -55,7 +55,7 @@ END subroutine W2_DIALOG
 !***********************************************************************************************************************************
 
 SUBROUTINE RUN_W2 (DLG,CONTROL_NAME,ACTION)
-  USE DFWIN, RENAMED => DLT; USE DFLOGM; USE MSCLIB; USE GLOBAL, ONLY: CDATE, CCTIME;  USE MAIN, ONLY: END_RUN               !Rename DLT in DFWIN
+  USE IFWIN, RENAMED => DLT; USE IFLOGM; USE MSCLIB; USE GLOBAL, ONLY: CDATE, CCTIME;  USE MAIN, ONLY: END_RUN               !Rename DLT in DFWIN
   IMPLICIT NONE
   INTEGER                             :: ACTION, IDTHREAD, CONTROL_NAME, I
   LOGICAL                             :: RESULT
@@ -67,7 +67,7 @@ SUBROUTINE RUN_W2 (DLG,CONTROL_NAME,ACTION)
   INTERFACE
     INTEGER(4) FUNCTION CE_QUAL_W2 (H)
     !DEC$ATTRIBUTES STDCALL :: CE_QUAL_W2
-      INTEGER H
+      INTEGER :: H
     END FUNCTION
   END INTERFACE
 
@@ -77,7 +77,7 @@ SUBROUTINE RUN_W2 (DLG,CONTROL_NAME,ACTION)
       CALL DATE_AND_TIME (CDATE,CCTIME)
       RESTART_PUSHED = .FALSE.
       STOP_PUSHED    = .FALSE.
-      HTHREAD        =  CREATETHREAD (NULL_SA,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))          !Start W2 in a new thread
+      HTHREAD        =  CREATETHREAD (0,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))          !Start W2 in a new thread    CREATETHREAD (NULL_SA,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))   
       TIME           =  CCTIME(1:2)//':'//CCTIME(3:4)//':'//CCTIME(5:6)
       RESULT         =  DLGSET (DLG,RUN,           .FALSE.,DLG_ENABLE)                             !Disable 'Run'     button
       RESULT         =  DLGSET (DLG,CLOSE,         .FALSE.,DLG_ENABLE)                             !Disable 'Run'     button
@@ -90,7 +90,7 @@ SUBROUTINE RUN_W2 (DLG,CONTROL_NAME,ACTION)
       CALL DATE_AND_TIME (CDATE,CCTIME)
       RESTART_PUSHED = .FALSE.
       STOP_PUSHED    = .FALSE.
-      HTHREAD        =  CREATETHREAD (NULL_SA,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))          !Start W2 in a new thread
+      HTHREAD        =  CREATETHREAD (0,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))          !Start W2 in a new thread    CREATETHREAD (NULL_SA,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))
       TIME           =  CCTIME(1:2)//':'//CCTIME(3:4)//':'//CCTIME(5:6)
       RESULT         =  DLGSET (DLG,RUN,           .FALSE.,DLG_ENABLE)                             !Disable 'Run'     button
       RESULT         =  DLGSET (DLG,CLOSE,         .FALSE.,DLG_ENABLE)                             !Disable 'Run'     button
@@ -108,7 +108,7 @@ SUBROUTINE RUN_W2 (DLG,CONTROL_NAME,ACTION)
       STOP_PUSHED    = .FALSE.
       RESTART_PUSHED = .TRUE.
       END_RUN        = .FALSE.
-      HTHREAD        =  CREATETHREAD (NULL_SA,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))          !Start W2 in a new thread
+      HTHREAD        =  CREATETHREAD (0,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))          !Start W2 in a new thread    CREATETHREAD (NULL_SA,0,LOC(CE_QUAL_W2),LOC(DLG),0,LOC(IDTHREAD))    
       RESULT         =  DLGSET       (DLG,ENDING_TIME,   ' ')
       RESULT         =  DLGSET       (DLG,RUN,           .FALSE.,DLG_ENABLE)                       !Disable 'Run'     button
       RESULT         =  DLGSET       (DLG,CLOSE,         .FALSE.,DLG_ENABLE)                       !Disable 'Run'     button
@@ -175,7 +175,7 @@ END SUBROUTINE ENABLE
 !***********************************************************************************************************************************
 
 SUBROUTINE SCREEN_UPDATE (DLG)
-  USE DFLOGM; USE DFLIB; USE MSCLIB; USE GEOMC; USE GLOBAL; USE GDAYC; USE SCREENC; USE SURFHE; USE TVDC; USE LOGICC; USE NAMESC
+  USE IFLOGM; USE DFLIB; USE MSCLIB; USE GEOMC; USE GLOBAL; USE GDAYC; USE SCREENC; USE SURFHE; USE TVDC; USE LOGICC; USE NAMESC    ! USE DFLOGM
   USE STRUCTURES; USE MAIN, ONLY:TMSTRT, TMEND; USE MetFileRegion
   IMPLICIT NONE
   CHARACTER(8)    :: TIME

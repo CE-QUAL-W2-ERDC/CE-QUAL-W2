@@ -14,11 +14,11 @@ MODULE HgModule
   USE PREC,     ONLY: R8
   USE MAIN,     ONLY: CONHG, HG_CALC, use_BedHg, ORGC_CALC, ALG_CALC, SEDIMENT_CALC, SED_DIAG, RESTART_IN, QTRF, QPR, QINF, ATM_DEP_LOADING, QDT, &
                       KBTR, IWD, ITR, JBTR, KTTR, JBWD, KWD, NHg0, NHgII, NMeHg
-  USE GLOBAL,   ONLY: JW, IU, ID, KT, KB, IMX, KMX, DLT, DAY, T1, C2, NSS, NAL, NZP, ICE, KTWB, CUS, BS, BE, DS, VOL, NWB, C1S
+  USE GLOBAL,   ONLY: JW, IU, ID, KT, KB, IMX, KMX, DLT, DAY, T1, C2, NSS, NAL, NZP, ICE, KTWB, CUS, BS, BE, DS, VOL, NWB, C1S, T2
   USE LOGICC,   ONLY: PH_CALC, WITHDRAWALS, TRIBUTARIES,UP_FLOW, DN_FLOW, PRECIPITATION,DIST_TRIBS, HEAD_FLOW
   USE KINETIC,  ONLY: SSS, SS, POMS, LPOM, RPOM, LPOMC, RPOMC, ORGC, LPOMCD, LRPOMCD, RPOMCD, LPOMCHD, RPOMCHD, &
                       LDOMCD, RDOMCD, DOC, PH, AS, ALG, BETA, GAMMA, REAER, KDO, O2, DO2, SODD, SEDC, SEDDC, &
-                      Hg0, HgII, MeHg, Hg0SS, HgIISS, MeHgSS, ANOX, DO4
+                      Hg0, HgII, MeHg, Hg0SS, HgIISS, MeHgSS, ANOX, DO4, LRDOMCD
   USE SURFHE,   ONLY: SHADE
   USE TVDC,     ONLY: SRON, QIN,    QTR, QOUT, CIN,    CTR,    CDTR,   CPR, QWD, QIND, CIND
   USE GEOMC,    ONLY: BI, BH1, BH2, DEPTHB, H1, H2, DLX, B
@@ -61,7 +61,9 @@ MODULE HgModule
   real(R8), allocatable, dimension(:)       :: kdoc_meth, kdoc_meth2                                  
   real(R8), allocatable, dimension(:)       :: k_demeth,  k_demeth2         ! Demethylation rate from MeHg to HgII (m^3/gC)    
   real(R8), allocatable, dimension(:)       :: kdoc_demeth, kdoc_demeth2     
-  real(R8), allocatable, dimension(:)       :: KDOHg1, KDOHg2, KDOn         ! DO inhibition function coefficients for methylation/demethylation
+  !real(R8), allocatable, dimension(:)       :: KDOHg1, KDOHg2, KDOn        ! DO inhibition function coefficients for methylation/demethylation
+  real(R8), allocatable, dimension(:)       :: Q10Meth,Q10DeMeth            ! Q10=Theta^(20-10) for MEth and Demeth when MethDeMethC==2  
+  
   !
   real(R8), allocatable, dimension(:)       :: BedH        ! Active sediment layer thickness (m)
   real(R8), allocatable, dimension(:)       :: BedPor      ! Porosity                      
@@ -96,10 +98,10 @@ MODULE HgModule
   ! derived variables and pathway fluxes
   real(R8), allocatable, dimension(:,:,:)   :: CON_HG, CON_HG2
   real(R8), allocatable, dimension(:,:,:)   :: KF_HG, KF_HG2
-  real(R8), allocatable, dimension(:,:)     :: KF_HG_SUM,KF_HG2_SUM
+  real(R8), allocatable, dimension(:,:)     :: KF_HG_SUM,KF_HG2_SUM,Hg2_TransferVelocity,MeHg_TransferVelocity
   real(R8) :: JDAYSTARTHG,NXTMFLHG,HGFLUXINT
   character(20), allocatable, dimension(:)  :: CNAMEHG, CNAMEHG2
-  character(30) :: KFNAMEHG(10), KFNAMEHG2(6)
+  character(43) :: KFNAMEHG(10), KFNAMEHG2(6)
   !
   real(R8) :: MW(3)    
   real(R8), allocatable, dimension(:,:) :: Hg0_Vol
@@ -118,7 +120,7 @@ MODULE HgModule
   real(R8), allocatable, dimension(:,:) :: MeHg_Demethylation, MeHg2_Demethylation 
   !
   integer  :: nRegion, nRegion_ini, FLUX_OUTPUT_FILE=8100, SREGION_INI          
-  integer,  allocatable, dimension(:)     :: RegionS, RegionE, SREGION,EREGION              
+  integer,  allocatable, dimension(:)     :: RegionS, RegionE, SREGION,EREGION,MethDeMethC              
   integer,  allocatable, dimension(:)     :: RegionS_ini, RegionE_ini         
   integer,  allocatable, dimension(:)     :: SegRegion             
   real(R8), allocatable, dimension(:)     :: dBedISSdt
@@ -271,9 +273,13 @@ MODULE HgModule
     read(CONHG,*) Comments, (kdoc_demeth(r), r=1,nRegion)
     read(CONHG,*) Comments, (vm1(3,r),        r=1,nRegion)
     !
-    read(CONHG,*) Comments, (KDOHg1(r),      r=1,nRegion)
-    read(CONHG,*) Comments, (KDOHg2(r),      r=1,nRegion)
-    read(CONHG,*) Comments, (KDOn(r),        r=1,nRegion)
+    !read(CONHG,*) Comments, (KDOHg1(r),      r=1,nRegion)
+    !read(CONHG,*) Comments, (KDOHg2(r),      r=1,nRegion)
+    !read(CONHG,*) Comments, (KDOn(r),        r=1,nRegion)
+    read(CONHG,*) Comments, (MethDeMethC(r),  r=1,nRegion)
+    read(CONHG,*) Comments, (Q10Meth(r),      r=1,nRegion)
+    read(CONHG,*) Comments, (Q10DeMeth(r),    r=1,nRegion)
+
     !
     ! sediment layer
     read(CONHG,*) Comments
@@ -444,9 +450,13 @@ MODULE HgModule
     call alloc_R8(nRegion, kdoc_meth, 0.0d0)
     call alloc_R8(nRegion, k_demeth,    0.05d0)
     call alloc_R8(nRegion, kdoc_demeth, 0.0d0) 
-    call alloc_R8(nRegion, KDOHg1,      1.0d0)
-    call alloc_R8(nRegion, KDOHg2,      6.0d0)
-    call alloc_R8(nRegion, KDOn,        3.5d0)
+    !call alloc_R8(nRegion, KDOHg1,      1.0d0)
+    !call alloc_R8(nRegion, KDOHg2,      6.0d0)
+    !call alloc_R8(nRegion, KDOn,        3.5d0)
+    allocate(MethDeMethC(nRegion))
+    call alloc_R8(nRegion, Q10Meth,     1.4d0)
+    call alloc_R8(nRegion, Q10DeMeth,   1.4d0)
+
         
     if (use_BedHg) then
       call alloc_R8(nRegion, BedH,   0.1d0)
@@ -473,7 +483,7 @@ MODULE HgModule
     !
     allocate(CON_HG(11+2*(NSS+NAL+NZP),KMX,IMX))
     allocate(CNAMEHG(11+2*(NSS+NAL+NZP)), KF_HG(15, KMX,IMX),KF_HG_SUM(15,IMX))
-    allocate(Hg0_Vol(KMX,IMX),Hg0_Oxidation(KMX,IMX),HgII_Reduction(KMX,IMX),HgII_Methylation(KMX,IMX),MeHg_Burial(KMX,IMX))
+    allocate(Hg0_Vol(KMX,IMX),Hg0_Oxidation(KMX,IMX),HgII_Reduction(KMX,IMX),HgII_Methylation(KMX,IMX),MeHg_Burial(KMX,IMX),HgII_Settling(KMX,IMX))
     allocate(HgII_Transfer(KMX,IMX),MeHg_Demethylation(KMX,IMX),MeHg_Decay(KMX,IMX),MeHg_Settling(KMX,IMX),MeHg_Transfer(KMX,IMX))
     
     Hg0_Oxidation=0.0;Hg0_Vol=0.0;HgII_Reduction=0.0;HgII_Methylation=0.0;HgII_Transfer=0.0;HgII_Settling=0.0
@@ -483,7 +493,7 @@ MODULE HgModule
     HgII2_Methylation=0.0;JPOC=0.0;JPOC2=0.0;HgII_Burial=0.0;MeHg2_Demethylation=0.0
     KF_HG_SUM=0.0;KF_HG=0.0; CON_HG=0.0
     
-    allocate(MeHg_Bed(KMX,IMX),HgII_Bed(KMX,IMX),HgII2_Transfer(KMX,IMX),MeHg2_Transfer(KMX,IMX),HgII_Settling(KMX,IMX))
+    allocate(MeHg_Bed(KMX,IMX),HgII_Bed(KMX,IMX),HgII2_Transfer(KMX,IMX),MeHg2_Transfer(KMX,IMX))
     
     MeHg_Bed=0.0;HgII_Bed=0.0;HgII2_Transfer=0.0;MeHg2_Transfer=0.0;MeHg_Transfer=0.0
     
@@ -551,7 +561,7 @@ MODULE HgModule
       allocate(Hgpom2(2:3, KMX,IMX), Hgp2(2:3,NSSmax, KMX,IMX))
       allocate(Hgpt2(2:3,  KMX,IMX), Hgpts2(2:3, KMX,IMX))
       allocate(CON_HG2(13+3*NSS, KMX,IMX))
-      allocate(CNAMEHG2(13+3*NSS), KF_HG2(6, KMX,IMX),KF_HG2_SUM(6,IMX))  
+      allocate(CNAMEHG2(13+3*NSS), KF_HG2(6, KMX,IMX),KF_HG2_SUM(6,IMX),Hg2_TransferVelocity(KMX,IMX),MeHg_TransferVelocity(KMX,IMX))  
       allocate(vbs(KMX,IMX))
       
       KF_HG2_SUM=0.0;CON_HG2=0.0;KF_HG2=0.0
@@ -707,7 +717,7 @@ MODULE HgModule
         ! First-order sediment compartment
         Bed_POM = SEDC(K,I) / ORGC(JW)        
       else if (SED_DIAG =='      ON') then
-        Bed_POM = (C2SF(K,I,19)+C2SF(K,I,20)+C2SF(K,I,21)) / ORGC(JW)
+        Bed_POM = (C2SF(K,I,19)+C2SF(K,I,20)+C2SF(K,I,21)) / ORGC(JW)   ! C2SF(K,I,19)=POCG1 (labile) C2SF(K,I,20)=POCG2 (refrac)  C2SF(K,I,21)=POCG3 (inert)
       else
         Bed_POM = 0.0
       end if
@@ -838,10 +848,17 @@ MODULE HgModule
         end if
         
         !JPOC = (LPOMCD(K,I)+LRPOMCD(K,I) + RPOMCD(K,I)+RPOMCHD(K,I))/DAY    ! gC/m3/s
-        JPOC(K,I) = (LPOMCD(K,I)+LRPOMCD(K,I) + RPOMCD(K,I)+RPOMCHD(K,I) + (LDOMCD(K,I)+RDOMCD(K,I)))   !/DAY    ! add DOC flux
+        IF(MethDeMethC(r) == 1)THEN
+        JPOC(K,I) = (LPOMCD(K,I)+LRPOMCD(K,I) + RPOMCD(K,I)+ LRDOMCD(K,I) + (LDOMCD(K,I)+RDOMCD(K,I)))   !/DAY    ! add DOC flux   ! Removed RPOMCHD(K,I) since not used
         JPOC(K,I) = JPOC(K,I)*ANOX(JW)*KDO(JW)/(KDO(JW)+O2(K,I))/DO4(K,I)   ! ANOXIC FRACTION OF TOTAL C TURNOVER RATE     ! gC/m3/s
+        ELSE
+        JPOC(K,I)=(1/DAY)*KDO(JW)/(KDO(JW)+O2(K,I))*Q10METH(R)**((T2(K,I) - 20.)/10.)    ! only for methylation - change for demeth
+        !write(12555,*)Q10METH(r),JPOC(k,i),t2(k,i),o2(k,i),k,i,day
+        ENDIF
+        
         
         if (use_BedHg) then
+         IF(MethDeMethC(r) == 1)THEN
           if (SEDIMENT_CALC(JW)) then
             ! First-order sediment compartment
             JPOC2(K,I) = SEDDC(K,I) / BedH(r)           ! gC/m3/s         
@@ -851,6 +868,11 @@ MODULE HgModule
           else
             JPOC2(K,I) = 0.0
           end if
+         ELSE
+            JPOC2(K,I) = (1/DAY)*Q10METH(R)**((C2SF(K,I,16) - 20.)/10.)     ! only for methylation - change for demeth
+            !write(12555,*)Q10METH(r),JPOC2(k,i),c2sf(k,i,16),k,i,day
+         ENDIF
+         
         end if       
 
         ! Hg0 volatilization
@@ -1080,6 +1102,14 @@ MODULE HgModule
         end if
         !
         ! MeHg demethylation under anoxic conditions
+        IF(MethDeMethC(r) /= 1)THEN
+              JPOC(K,I)=(1/DAY)*KDO(JW)/(KDO(JW)+O2(K,I))*Q10DEMETH(r)**((T2(K,I) - 20.)/10.)    ! only for demethylation 
+           if (use_BedHg) then
+              JPOC2(K,I)=(1/DAY)*Q10DEMETH(r)**((C2SF(K,I,16) - 20.)/10.0)    ! only for demethylation  
+           endif
+        ENDIF
+        
+        
         !MeHg_Demethylation(K,I) = Hgd(3,K,I) * xx*k_demeth(r)*JPOC(K,I)
          MeHg_Demethylation(K,I) = Hgd(3,K,I) * k_demeth(r)*JPOC(K,I)
         !if(use_DOCSorbed(3)) MeHg_Demethylation(K,I) = MeHg_Demethylation(K,I) + Hgdoc(3,K,I) * xx*kdoc_demeth(r)*JPOC(K,I)
@@ -1096,18 +1126,18 @@ MODULE HgModule
         !
         ! sediment mass transfer 
         if(vm1(2,r) < 0.0)then
-            vm(2,r)=c2sf(k,i,38)*abs(vm1(2,r))/DAY      ! This is the flux rate from sed diag model which must be ON
-            
+            vm(2,r)=(1./((1./c2sf(k,i,38))+(1./(c2sf(k,i,39)+c2sf(k,i,40)))))*abs(vm1(2,r))/DAY      ! This is the flux rate from sed diag model which must be ON. m/d to m/s
         else
             vm(2,r)=vm1(2,r)/100.0/DAY    ! cm/d to m/s
         endif
-
+        Hg2_TransferVelocity(k,i)=vm(2,r)*DAY  ! m/d  
         if(vm1(3,r) < 0.0)then
-            vm(3,r)=c2sf(k,i,38)*abs(vm1(3,r))/DAY
+            vm(3,r)=(1./((1./c2sf(k,i,38))+(1./(c2sf(k,i,39)+c2sf(k,i,40)))))*abs(vm1(3,r))/DAY   !m/d to m/s
             
         else
             vm(3,r)=vm1(3,r)/100.0/DAY    ! cm/d to m/s
         endif      
+        MeHg_TransferVelocity(k,i)=vm(3,r)*DAY  ! m/d 
         
         if (use_BedHg) then
           HgII_Transfer(K,I)  =  vm(2,r) * (Cd2(2,K,I)/BedPor(r) - Hgd(2,K,I)) * BIBH2(K,I)   !/100.0/DAY
@@ -1168,7 +1198,7 @@ MODULE HgModule
   !===========================================================================================================================
   ! compute derived variables and pathway fluxes
   subroutine  HgOutputs
-  USE GLOBAL, ONLY: CD; USE MAIN, ONLY:PHG2L_DER,PHG2S_DER,PMHGL_DER,PMHGS_DER,DHG2_DER,DMHG_DER
+  USE GLOBAL, ONLY: CD; USE MAIN, ONLY:PHG2L_DER,PHG2S_DER,PMHGL_DER,PMHGS_DER,DHG2_DER,DMHG_DER,HG2ALG_DER,HG2ZOO_DER,HG2ISS_DER,HG2POM_DER,METHYL_DER,DEMETHYL_DER,MEHGALG_DER,MEHGZOO_DER,MEHGISS_DER,MEHGPOM_DER,JOC_DER
     implicit none
     !
     real(R8) :: W_TSS, Bed_TSS 
@@ -1352,7 +1382,32 @@ MODULE HgModule
         CD(K,I,DHG2_DER)=HGD(2,K,I)+HGDOC(2,K,I)
         CD(K,I,DMHG_DER)=HGD(3,K,I)+HGDOC(3,K,I)
         !PHG2L_DER=28;PHG2S_DER=29;PMHGL_DER=30;PMHGS_DER=31;DHG2_DER=32;DMHG_DER=33
-        
+        !HG2ALG_DER=34;HG2ZOO_DER=35;HG2ISS_DER=36;HG2POM_DER=37;METHYL_DER=38;DEMETHYL_DER=39;MEHGALG_DER=40;MEHGZOO_DER=41;MEHGISS_DER=42;MEHGPOM_DER=43;JOC_DER=44
+        CD(K,I,HG2ALG_DER)=0.0;CD(K,I,HG2ZOO_DER)=0.0;CD(K,I,HG2ISS_DER)=0.0    ! SW 7/2023
+        DO JA=1,NAL
+        CD(K,I,HG2ALG_DER)=CD(K,I,HG2ALG_DER)+Hgap(2,JA,K,I)
+        ENDDO
+        DO JZ=1,NZP 
+        CD(K,I,HG2ZOO_DER)=CD(K,I,HG2ZOO_DER)+Hgzp(2,JZ,K,I)
+        ENDDO
+        DO JS=1,NSS 
+        CD(K,I,HG2ISS_DER)=CD(K,I,HG2ISS_DER)+Hgp(2,JS,K,I)
+        ENDDO
+        CD(K,I,HG2POM_DER)=Hgpom(2,K,I)
+        CD(K,I,METHYL_DER)=HgII_Methylation(K,I)
+        CD(K,I,DEMETHYL_DER)=MeHg_Demethylation(K,I)
+        CD(K,I,MEHGALG_DER)=0.0;CD(K,I,MEHGZOO_DER)=0.0;CD(K,I,MEHGISS_DER)=0.0    ! SW 7/2023
+        DO JA=1,NAL
+        CD(K,I,MEHGALG_DER)=CD(K,I,MEHGALG_DER)+Hgap(3,JA,K,I)
+        ENDDO
+        DO JZ=1,NZP 
+        CD(K,I,MEHGZOO_DER)=CD(K,I,MEHGZOO_DER)+Hgzp(3,JZ,K,I)
+        ENDDO
+        DO JS=1,NSS 
+        CD(K,I,MEHGISS_DER)=CD(K,I,MEHGISS_DER)+Hgp(3,JS,K,I)
+        ENDDO
+        CD(K,I,MEHGPOM_DER)=Hgpom(3,K,I)
+        CD(K,I,JOC_DER)=JPOC(K,I)
       END DO
     END DO
   end subroutine 
@@ -1513,7 +1568,8 @@ MODULE HgModule
     deallocate(k_decay,  kdoc_decay)
     deallocate(k_demeth, kdoc_demeth)
     deallocate(vm,vm1)
-    deallocate(KDOHg1, KDOHg2, KDOn)
+    !deallocate(KDOHg1, KDOHg2, KDOn)
+    deallocate(MethDeMethC, Q10Meth,Q10DeMeth)
     !
     if (use_BedHg) then 
       deallocate(Hg2, Hgd2, Hgdoc2, Hgpom2, Hgp2, Hgpts2, Hgpt2)
@@ -1534,6 +1590,13 @@ MODULE HgModule
     !
     deallocate(RegionS, RegionE, SegRegion)
     close(FLUX_OUTPUT_FILE);deallocate(KF_HG_SUM,KF_HG2_SUM,SREGION,EREGION)
+      deallocate(Hg0_Vol,Hg0_Oxidation,HgII_Reduction,HgII_Methylation,MeHg_Burial)
+      deallocate(HgII_Transfer,MeHg_Demethylation,MeHg_Decay,MeHg_Settling,MeHg_Transfer)
+      deallocate(HgII2_Methylation,JPOC,JPOC2,HgII_Burial,MeHg2_Demethylation) 
+      deallocate(MeHg_Bed,HgII_Bed,HgII2_Transfer,MeHg2_Transfer,HgII_Settling)
+      deallocate(ATMDEP_HG0,ATMDEP_HG2,ATMDEP_MEHG)
+      deallocate(Cd2, Cdoc2)
+      deallocate(Hg2_TransferVelocity,MeHg_TransferVelocity)
   end subroutine
 !===========================================================================================================================
   ! allocate a real array and set the default value

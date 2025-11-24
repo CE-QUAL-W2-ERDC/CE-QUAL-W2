@@ -24,10 +24,10 @@ SUBROUTINE RESTART_OUTPUT (RSOFN)
   WRITE (RSO) Z,      SZ,     ELWS,   SAVH2,  SAVHR,  H2
   WRITE (RSO) KTWB,   KTI,    SKTI,   SBKT
   WRITE (RSO) ICE,    ICETH,  CUF,    QSUM
-  WRITE (RSO) U,      W,      SU,     SW,     AZ,     SAZ,    DLTLIM
+  WRITE (RSO) U,      W,      SU,     SW,     AZ,     SAZ,    DLTLIM, SELWS
   WRITE (RSO) T1,     T2,     C1,     C2,     C1S,    SED,    KFS,    CSSK
   WRITE (RSO) EPD,   EPM
-  WRITE (RSO) MACMBRT,MACRC,  SMACRC, MAC,    SMAC,   MACRM,  MACSS
+  WRITE (RSO) MACMBRT,MACRC,   MAC,  MACRM,  MACSS    !SMACRC, SMAC,  
   WRITE (RSO) SEDC, SEDN, SEDP, ZOO, CD  ! mlm 10/06
   WRITE(RSO) SDKV                        ! MLM 6/10/07
   WRITE(RSO) TKE                         ! SW 10/4/07

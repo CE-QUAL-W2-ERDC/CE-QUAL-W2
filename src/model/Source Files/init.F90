@@ -19,7 +19,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
 !**                                                 Task 1.1.1: Zero Variables                                                    **
 !***********************************************************************************************************************************
   IceQSS = 0.0d00; WATER_AGE_ACTIVE=.FALSE.   ! SR 7/27/2017
-  ATM_DEP_LOADING=0.0;IN_TOXIN=0.0
+  ATM_DEP_LOADING=0.0;IN_TOXIN=0.0;AGZ=0.0  ! SW 8/2024
   KB     = 0;   KBR    = 0;   NAC    = 0;   NTAC   = 0;   NACD   = 0;   NACIN  = 0;   NACTR  = 0;   NACDT  = 0;   NACPR  = 0
   NDSP   = 0;   HMAX   = 0;   KBMAX  = 0;   DLXMAX = 0;   KBQIN  = 0;   KTQIN  = 0;   QGT    =0.0;  QSP    =0.0    ! SW 8/26/15 Initialize Qgt and Qsp for screen output on restart
   NAF    = 0;   TISS   = 0.0;  CSHE   = 0.0; CIN    = 0.0; TIN    = 0.0; EV     = 0.0; NACATD=0
@@ -34,7 +34,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   AVHR   = 0.0D0; GRAV   = 0.0D0; KBP    = 0  ; DZT    = 0.0D0; AZT    = 0.0D0; KFJW   = 0.0; QC     = 0.0D0; YSS    = 0.0; YSTS   = 0.0
   QWD    = 0.0D0; QDTR   = 0.0D0; TTR    = 0.0; CTR    = 0.0; TDTR   = 0.0; QOLDS  = 0.0D0; DTPS   = 0.0; VSTS   = 0.0; VSS    = 0.0
   EGT2   = 0.0; HAB    = 100.0; sedpinflux=0.0; sedninflux=0.0 ; FPSS=0.0; FPFE=0.0  ! SR 3/2019
-  RS=0.0;RN=0.0;RB=0.0;RE=0.0;RC=0.0;RANLW=0.0;TICAP=0.0;TICZR=0.0;TICEP=0.0;TICMC=0.0; VOL=0.0        
+  RS=0.0;RN=0.0;RB=0.0;RE=0.0;RC=0.0;RANLW=0.0;TICAP=0.0;TICZR=0.0;TICEP=0.0;TICMC=0.0; VOL=0.0;QERR=0.0             
   sdfirstadd=.true.   ! cb 9/3/17
   BR_NOTECPLOT=.TRUE.    ! SW 8/27/2019
   QWDSAV = 0.0D0;                                                                                                     !SR 06/29/2021
@@ -56,7 +56,8 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
     ZMIN   = -1000.0
     TKE=0.0                                                     ! SG 10/4/07
     SEDP=0.0;SEDC=0.0;SEDN=0.0;DLTAV=0.0;ELTMJD=0.0
-    MACMBRT=0.0; MACRC=0.0;SMACRC=0.0;MAC=0.0;SMAC=0.0;MACRM=0.0;EPM=0.0;macss=0.0 ! cb 3/8/16
+    !MACMBRT=0.0; MACRC=0.0;SMACRC=0.0;MAC=0.0;SMAC=0.0;MACRM=0.0;EPM=0.0;macss=0.0 ! cb 3/8/16
+    MACMBRT=0.0; MACRC=0.0;MAC=0.0;MACRM=0.0;EPM=0.0;macss=0.0 ! cb 3/8/16
     KTICOL=.FALSE.
   END IF
   ANLIM = 1.0; APLIM = 1; ASLIM = 1.0; ALLIM = 1.0; ENLIM = 1.0; EPLIM = 1; ESLIM = 1.0; ELLIM = 1.0; KLOC = 1; ILOC = 1
@@ -799,6 +800,7 @@ IF(IncludeCEMASedDiagenesis) call InitCond_SedFlux
     SU    = U
     SW    = W
     SAZ   = AZ
+    SELWS = ELWS
     SKTI  = KTI
     SBKT  = BKT
     SAVH2 = AVH2

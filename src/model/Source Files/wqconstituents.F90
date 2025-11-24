@@ -5,7 +5,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
   USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC;USE TRIDIAG_V
   Use CEMAVars
-  Use CEMASedimentDiagenesis, only: SedimentFlux; USE ALGAE_TOXINS
+  Use CEMASedimentDiagenesis, only: SedimentFlux; USE ALGAE_TOXINS; USE AlgaeReduceGasTransfer
   USE HgModule, ONLY: ComputeHgKinetics, HgKineticFluxes
   
   IMPLICIT NONE
@@ -13,6 +13,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   REAL :: TPALG,TNALG,TPZ,TNZ,TPBOD,TNBOD
 
       IF(MACROPHYTE_ON.AND.UPDATE_KINETICS)CALL POROSITY 
+      IF(UPDATE_KINETICS)IMM=IMM+1   ! FOR OUTPUT OF REDUCE GAS TRANSFER FROM ALGAE ACCUMULATION IN SURFACE LAYER
       DO JW=1,NWB
         KT = KTWB(JW)
         DO JB=BS(JW),BE(JW)
@@ -39,11 +40,58 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
           end if
         ENDIF
 
+        IF(MACROPHYTE_ON)THEN
+!C  IF DEPTH IN KTI LAYER BECOMES GREATER THAN THRESHOLD, SETTING
+!C      MACROPHYTE CONC. IN KTI COLUMN TO INITIAL CONC.
+          DO I=IU,ID
+!            IF (EL(KT,I)-Z(I)*COSA(JB) > EL(KTI(I),I)) THEN
+!!C  KEEPING TRACK IF COLUMN KTI HAS MACROPHYTES
+!                  IF(KTI(I).GT.2)KTICOL(I)=.FALSE.
+!            ELSE                         
+!                  KTICOL(I)=.TRUE.  
+!            ENDIF    
+              
+            DEPKTI=ELWS(I)-EL(KTI(I)+1,I)
+
+!******* MACROPHYTES, SETTING CONC. OF MACROPHYTES IN NEW COLUMNS TO
+!********* INITIAL CONCENTRATION IF COLUMN DEPTH IS GREATER THAN 'THRKTI'
+            IF(.NOT.KTICOL(I).AND.DEPKTI.GE.THRKTI)THEN
+              KTICOL(I)=.TRUE.
+              JT=KTI(I)
+              MACT(JT,KT,I)=0.0
+              DO M=1,NMC
+                !MACRC(JT,KT,I,M)=MACWBCI(JW,M)
+                IF (ISO_macrophyte(JW,m))  macrc(jt,kt,I,m) = macwbci(JW,m)     ! cb 3/7/16
+                IF (VERT_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
+                IF (long_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
+                COLB=EL(KTI(I)+1,I)
+                COLDEP=ELWS(I)-COLB
+                !MACRM(JT,KT,I,M)=MACWBCI(JW,M)*COLDEP*CW(JT,I)*DLX(I)
+                MACRM(JT,KT,I,M)=macrc(jt,kt,I,m)*COLDEP*CW(JT,I)*DLX(I)         ! cb 3/17/16                 
+                MACT(JT,KT,I)=MACT(JT,KT,I)+MACWBCI(JW,M)
+                MACMBRT(JB,M) = MACMBRT(JB,M)+MACRM(JT,KT,I,M)
+              END DO
+            END IF
+
+!****** MACROPHYTES, WHEN COLUMN DEPTH IS LESS THAN 'THRKTI', ZEROING OUT CONC.
+            IF(KTICOL(I).AND.DEPKTI.LT.THRKTI)THEN
+              KTICOL(I)=.FALSE.
+              JT=KTI(I)
+              MACT(JT,KT,I)=0.0
+              DO M=1,NMC
+                MACMBRT(JB,M) = MACMBRT(JB,M)-MACRM(JT,KT,I,M)
+                MACRC(JT,KT,I,M)=0.0
+                MACRM(JT,KT,I,M)=0.0
+              END DO
+            END IF
+          END DO
+
           DO M=1,NMC
             IF (MACROPHYTE_CALC(JW,M))THEN
               CALL MACROPHYTE(M)
             END IF
           END DO
+        END IF
 
           IF (UPDATE_KINETICS) THEN
             IF (UPDATE_RATES) THEN

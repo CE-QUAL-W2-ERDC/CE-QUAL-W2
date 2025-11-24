@@ -60,7 +60,7 @@ Module CEMAOutputRoutines
             Write(CEMASedFlxFilN11,'("JCH4(gO2m-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,10), SegNumI = 1, IMX),(KFSFAV(SegNumI,8),  SegNumI = 1, IMX)
             Write(CEMASedFlxFilN12,'("JNH4(gNm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,14), SegNumI = 1, IMX),(KFSFAV(SegNumI,9),  SegNumI = 1, IMX)
             Write(CEMASedFlxFilN13,'("JNO3(gNm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,15), SegNumI = 1, IMX),(KFSFAV(SegNumI,10), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN14,'("JPO4(gPm-2d-1), ,",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,16), SegNumI = 1, IMX),(KFSFAV(SegNumI,11), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN14,'("JPO4(gPm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,16), SegNumI = 1, IMX),(KFSFAV(SegNumI,11), SegNumI = 1, IMX)
             
             Write(CEMASedFlxFilN15,'("POPG1(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,25), SegNumI = 1, IMX),(KFSFAV(SegNumI,12), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN16,'("POPG2(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,26), SegNumI = 1, IMX),(KFSFAV(SegNumI,13), SegNumI = 1, IMX)
@@ -93,6 +93,7 @@ Module CEMAOutputRoutines
             Write(CEMASedFlxFilN39,'("SulfidePorewaterAerobic_KB_Layer1(mgO2L-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,11), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN40,'("SulfidePorewaterAnaerobic_KB_Layer2(mgO2L-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,12), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN41,'("TransferVelocitySedimentLayer1_to_Water(md-1),",f10.3,",",<IMX>(f10.5,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,38), SegNumI = 1, IMX)
+            !Write(CEMASedFlxFilN42,'("TransferVelocitySedimentLayer1_to_Layer2(md-1),",f10.3,",",A,",",<IMX>(f10.5,","),A,",",<IMX>(f10.5,","))')JDAY,'SD_KL12',(C2SF(KBI(SegNumI),SegNumI,39), SegNumI = 1, IMX),'SD_W12',(C2SF(KBI(SegNumI),SegNumI,40), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN42,'("TransferVelocitySedimentLayer1_to_Layer2_KL12(md-1),",f10.3,",",<IMX>(f10.5,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,39), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN43,'("TransferVelocitySedimentLayer1_to_Layer2_W12(md-1),", f10.3,",",<IMX>(f10.5,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,40), SegNumI = 1, IMX)
             IF(Bubbles_Calculation) Call CEMATempOutput
@@ -121,12 +122,12 @@ Module CEMAOutputRoutines
         ENDDO
         
         
-        nGas=2 ! CH4 write
-        !Write(CEMASedFlxFilN8,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
-        Write(CEMASedFlxFilN8,'("DissolvedCH4(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
-        nGas=1 ! H2S write
-        !Write(CEMASedFlxFilN9,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
-        Write(CEMASedFlxFilN9,'("DissolvedH2S(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
+        !nGas=2 ! CH4 write
+        !!Write(CEMASedFlxFilN8,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
+        !Write(CEMASedFlxFilN8,'("DissolvedCH4(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
+        !nGas=1 ! H2S write
+        !!Write(CEMASedFlxFilN9,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
+        !Write(CEMASedFlxFilN9,'("DissolvedH2S(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
 
         !Do nGas = 1, 4
         !    If(nGas == 1)Write(CEMAOutFilN6,'("H2S Concentration (gm/m�")')
@@ -136,7 +137,7 @@ Module CEMAOutputRoutines
         !    Write(CEMAOutFilN6,'(<IMX>f10.3)')(DissolvedGasSediments(nGas,SegNumI), SegNumI = 1, IMX)
         !End Do !nGas
         DO SegNumI=1,IMX
-            Write(CEMAOutFilN6,'(f12.4,",",i5,","<IMX>(f12.4,","))')JDAY,SegNumI,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), nGas = 1, 4)
+            Write(CEMAOutFilN4,'(f12.4,",",i5,","<IMX>(f12.4,","))')JDAY,SegNumI,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), nGas = 1, 4)
         ENDDO
         
         !Write(CEMAOutFilN3,'("Gas Release to Atmosphere at JDAY = ",f8.2)')JDAY

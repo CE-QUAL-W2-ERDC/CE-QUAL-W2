@@ -42,7 +42,7 @@ Module MetFileRegion    ! SW 12/13/2023
     Subroutine MetRegionsWB
     Use GLOBAL
     Implicit None    
-    !integer :: NMet
+    integer :: NMet
 
     Allocate(WB_MetRegions(NWB),I_MetRegions(IMX))
     MetRegWB=0

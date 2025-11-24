@@ -8,7 +8,7 @@ SUBROUTINE TIME_VARYING_DATA
   USE KINETIC, ONLY:EXH2O; USE SHADEC; USE MAIN, ONLY: PUMPS, SEGNUM, WBSEG, N2BND, DOBND, DGPBND,NDO, NDGP, ITR, EA, SYSTDG, NN2, TMEND, ATM_DEPOSITION, ATMDEPFN, ATM_DEP_LOADING, ATMDCN, NACATD, ATM_DEPOSITION_INTERPOLATION, GASGTC, GASSPC ! systdg ADD WBSEG, N2BND, DOBND, NDO, NGN2, ITR, EA, SYSTDG
   USE modSYSTDG, ONLY: TWETSC, TWEFN, TWE_TS; USE TDGAS                                     
   USE IFPORT     ! for SLEEPQQ and SYSTEMQQ commands                                       !SR 11/28/19
-  USE MetFileRegion, ONLY: NMetFileRegions,FNMetRegion,MetRegWB,MetRegStart,MetRegEnd,WB_MetRegions,I_MetRegions,FNMetFileReg,Met_Regions
+  USE MetFileRegion
   IMPLICIT NONE
 
 ! Type declaration
@@ -2607,7 +2607,7 @@ ENTRY READ_INPUT_DATA (NXTVD)
     IF(DYNGTC(I) == 'FLOW_ZGT')THEN
         DO WHILE (JDAY >= NXZGT)
             DO J=1,NJJ
-            EGT(J)=NXEGT(J)
+            EGT(JJG(J))=NXEGT(JJG(J))    !EGT(J)=NXEGT(J)    ! Mohammad DWR 2/14/2025
             END DO
             READ (GTZ,*)NXZGT,(NXEGT(JJG(J)), J=1,NJJ)
         ENDDO

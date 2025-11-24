@@ -120,7 +120,7 @@ SUBROUTINE OUTPUTINIT
         REWIND (SPR(JW))  
         READ (SPR(JW),*)  
         DO WHILE (JDAY1 < JDAY)  
-          READ (SPR(JW),*,END=101) LINE,JDAY1        !'(A,F10.0)'    LINE(1:38)
+          READ (SPR(JW),'(A45,f10.0)',END=101,ERR=1001) LINE,JDAY1        !'(A,F10.0)'    LINE(1:38)
         END DO  
         BACKSPACE (SPR(JW))  
 101     CONTINUE  
@@ -129,13 +129,18 @@ SUBROUTINE OUTPUTINIT
         REWIND (SPRV(JW))  
         READ (SPRV(JW),*)  
         DO WHILE (JDAY1 < JDAY)  
-          READ (SPRV(JW),*,END=104) LINE,JDAY1        !'(A,F10.0)'  LINE(1:38)
+          READ (SPRV(JW),'(A45,f10.0)',END=104) LINE,JDAY1        !'(A,F10.0)'  LINE(1:38)
         END DO  
         BACKSPACE (SPRV(JW))  
 104     CONTINUE  
         JDAY1 = 0.0   
         ENDIF
-      END IF  
+      END IF
+      GO TO 1002
+1001  CONTINUE
+      WRITE(W2ERR,'(A)')'Restart error reading SPR file. See Preprocessor warnings for names of variables. Did not process SPR files for restart.'
+      ERROR_OPEN=.TRUE. 
+1002  CONTINUE    
       IF (PROFILE(JW).and. iprf(1,1) /= -1) THEN    ! SW 4/1/2016
         REWIND (PRF(JW))  
         READ   (PRF(JW),'(A)')        (LINE,J=1,11)  
@@ -198,9 +203,9 @@ SUBROUTINE OUTPUTINIT
         SEGNUM = ADJUSTL(SEGNUM)  
         L      = LEN_TRIM(SEGNUM)  
         IF(L2==0)THEN
-        OPEN   (WDO(JWD,1),FILE='qwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')  ! '.opt' SW 4/14/2017
+        OPEN   (WDO(JWD,1),FILE='q_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')  ! '.opt' SW 4/14/2017
         ELSE
-        OPEN   (WDO(JWD,1),FILE=WDOFN(1:L2)//'qwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')  ! '.opt' SW 4/14/2017
+        OPEN   (WDO(JWD,1),FILE=WDOFN(1:L2)//'q_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')  ! '.opt' SW 4/14/2017
         ENDIF
         
         REWIND (WDO(JWD,1))  
@@ -211,9 +216,9 @@ SUBROUTINE OUTPUTINIT
         BACKSPACE (WDO(JWD,1))  
 106     JDAY1 = 0.0  
         IF(L2==0)THEN
-        OPEN   (WDO(JWD,2),FILE='two_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')    ! '.opt' SW 4/14/2017 repeated for all .opt below for Downstream outflow
+        OPEN   (WDO(JWD,2),FILE='t_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')    ! '.opt' SW 4/14/2017 repeated for all .opt below for Downstream outflow
         ELSE
-        OPEN   (WDO(JWD,2),FILE=WDOFN(1:L2)//'two_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')    !   
+        OPEN   (WDO(JWD,2),FILE=WDOFN(1:L2)//'t_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')    !   
         ENDIF
 
         REWIND (WDO(JWD,2))  
@@ -225,9 +230,9 @@ SUBROUTINE OUTPUTINIT
 107     JDAY1=0.0         
         IF (CONSTITUENTS) THEN  
           IF(L2==0)THEN
-          OPEN   (WDO(JWD,3),FILE='cwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')
+          OPEN   (WDO(JWD,3),FILE='c_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')
           ELSE
-          OPEN   (WDO(JWD,3),FILE=WDOFN(1:L2)//'cwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')              
+          OPEN   (WDO(JWD,3),FILE=WDOFN(1:L2)//'c_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')              
           ENDIF
 
           REWIND (WDO(JWD,3))  
@@ -241,9 +246,9 @@ SUBROUTINE OUTPUTINIT
         END IF  
         IF (DERIVED_CALC) THEN  
           IF(L2==0)THEN
-          OPEN   (WDO(JWD,4),FILE='dwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')
+          OPEN   (WDO(JWD,4),FILE='d_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')
           ELSE
-          OPEN   (WDO(JWD,4),FILE=WDOFN(1:L2)//'dwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')              
+          OPEN   (WDO(JWD,4),FILE=WDOFN(1:L2)//'d_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),POSITION='APPEND')              
           ENDIF
 
           REWIND (WDO(JWD,4))  
@@ -256,12 +261,8 @@ SUBROUTINE OUTPUTINIT
           JDAY1 = 0.0  
         END IF  
         ! Output of withdrawal layers
-          !IF(L2==0)THEN
-          !OPEN   (WDO(JWD,5),FILE='qwo_layers_'//SEGNUM(1:L)//'_'//WDOFN(L1:L1+4),POSITION='APPEND')                  !SR 12/19/2022
-          !ELSE
           OPEN   (WDO(JWD,5),FILE=WDOFN(1:L2)//'qwo_layers_'//SEGNUM(1:L)//'_'//WDOFN(L1:L1+4),POSITION='APPEND')                  !SR 12/19/2022              
-          !ENDIF
-          
+
           REWIND (WDO(JWD,5))                                                                                         !SR 12/19/2022
           READ   (WDO(JWD,5),'(//)')                                                                                  !SR 12/19/2022
           DO WHILE (JDAY1 < JDAY .AND. .NOT. EOF(WDO(JWD,5)))                                                         !SR 12/19/2022
@@ -287,12 +288,7 @@ SUBROUTINE OUTPUTINIT
               SEGNUM = ADJUSTL(SEGNUM)  
               L      = LEN_TRIM(SEGNUM)  
               WDO2(JFILE,1) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,1),FILE='qwo_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,1),FILE=WDOFN(1:L2)//'qwo_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
               REWIND(WDO2(JFILE,1))  
               READ   (WDO2(JFILE,1),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -303,12 +299,7 @@ SUBROUTINE OUTPUTINIT
               JDAY1 = 0.0  
                 
               WDO2(JFILE,2) = NUNIT; NUNIT = NUNIT+1  
-            !  IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,2),FILE='two_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !  ELSE
             OPEN(WDO2(JFILE,2),FILE=WDOFN(1:L2)//'two_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,2))  
               READ   (WDO2(JFILE,2),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -319,12 +310,7 @@ SUBROUTINE OUTPUTINIT
               JDAY1 = 0.0  
               IF (CONSTITUENTS) THEN  
                 WDO2(JFILE,3) = NUNIT; NUNIT = NUNIT+1  
-                !IF(L2==0)THEN
-                !OPEN(WDO2(JFILE,3),FILE='cwo_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-                !ELSE
                 OPEN(WDO2(JFILE,3),FILE=WDOFN(1:L2)//'cwo_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                    
-                !ENDIF
-
                 REWIND(WDO2(JFILE,3))  
                 READ   (WDO2(JFILE,3),'(//)')  
                 DO WHILE (JDAY1 < JDAY)  
@@ -337,12 +323,7 @@ SUBROUTINE OUTPUTINIT
                 
               IF (DERIVED_CALC) THEN  
                 WDO2(JFILE,4) = NUNIT; NUNIT = NUNIT+1  
-                !IF(L2==0)THEN
-                !OPEN(WDO2(JFILE,4),FILE='dwo_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-                !ELSE
                 OPEN(WDO2(JFILE,4),FILE=WDOFN(1:L2)//'dwo_str'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                    
-                !ENDIF
-
                 REWIND(WDO2(JFILE,4))  
                 READ   (WDO2(JFILE,4),'(//)')  
                 DO WHILE (JDAY1 < JDAY)  
@@ -371,12 +352,7 @@ SUBROUTINE OUTPUTINIT
             SEGNUM = ADJUSTL(SEGNUM)  
             L      = LEN_TRIM(SEGNUM)  
             WDO2(JFILE,1) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,1),FILE='qwo_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,1),FILE=WDOFN(1:L2)//'qwo_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,1))  
             READ   (WDO2(JFILE,1),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -386,12 +362,7 @@ SUBROUTINE OUTPUTINIT
 114         CONTINUE  
             JDAY1 = 0.0  
             WDO2(JFILE,2) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,2),FILE='two_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,2),FILE=WDOFN(1:L2)//'two_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,2))  
             READ   (WDO2(JFILE,2),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -402,12 +373,7 @@ SUBROUTINE OUTPUTINIT
             JDAY1 = 0.0  
             IF (CONSTITUENTS) THEN  
               WDO2(JFILE,3) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,3),FILE='cwo_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,3),FILE=WDOFN(1:L2)//'cwo_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND') 
-              !ENDIF
-
               REWIND(WDO2(JFILE,3))  
               READ   (WDO2(JFILE,3),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -419,12 +385,7 @@ SUBROUTINE OUTPUTINIT
             ENDIF  
             IF (DERIVED_CALC) THEN  
               WDO2(JFILE,4) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,4),FILE='dwo_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,4),FILE=WDOFN(1:L2)//'dwo_wd'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND') 
-              !ENDIF
-
               REWIND(WDO2(JFILE,4))  
               READ   (WDO2(JFILE,4),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -452,12 +413,7 @@ SUBROUTINE OUTPUTINIT
             SEGNUM = ADJUSTL(SEGNUM)  
             L      = LEN_TRIM(SEGNUM)  
             WDO2(JFILE,1) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,1),FILE='qwo_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,1),FILE=WDOFN(1:L2)//'qwo_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,1))  
             READ   (WDO2(JFILE,1),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -467,12 +423,7 @@ SUBROUTINE OUTPUTINIT
 118         CONTINUE  
             JDAY1 = 0.0  
             WDO2(JFILE,2) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,2),FILE='two_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,2),FILE=WDOFN(1:L2)//'two_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,2))  
             READ   (WDO2(JFILE,2),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -483,12 +434,7 @@ SUBROUTINE OUTPUTINIT
             JDAY1 = 0.0  
             IF (CONSTITUENTS) THEN  
               WDO2(JFILE,3) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,3),FILE='cwo_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,3),FILE=WDOFN(1:L2)//'cwo_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,3))  
               READ   (WDO2(JFILE,3),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -500,12 +446,7 @@ SUBROUTINE OUTPUTINIT
             ENDIF  
             IF (DERIVED_CALC) THEN  
               WDO2(JFILE,4) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,4),FILE='dwo_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,4),FILE=WDOFN(1:L2)//'dwo_sp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,4))  
               READ   (WDO2(JFILE,4),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -534,12 +475,7 @@ SUBROUTINE OUTPUTINIT
             SEGNUM = ADJUSTL(SEGNUM)  
             L      = LEN_TRIM(SEGNUM)  
             WDO2(JFILE,1) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,1),FILE='qwo_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,1),FILE=WDOFN(1:L2)//'qwo_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,1))  
             READ   (WDO2(JFILE,1),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -549,12 +485,7 @@ SUBROUTINE OUTPUTINIT
 122         CONTINUE  
             JDAY1 = 0.0  
             WDO2(JFILE,2) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,2),FILE='two_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,2),FILE=WDOFN(1:L2)//'two_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,2))  
             READ   (WDO2(JFILE,2),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -565,12 +496,7 @@ SUBROUTINE OUTPUTINIT
             JDAY1 = 0.0  
             IF (CONSTITUENTS) THEN  
               WDO2(JFILE,3) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,3),FILE='cwo_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,3),FILE=WDOFN(1:L2)//'cwo_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,3))  
               READ   (WDO2(JFILE,3),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -582,12 +508,7 @@ SUBROUTINE OUTPUTINIT
             ENDIF  
             IF (DERIVED_CALC) THEN  
               WDO2(JFILE,4) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,4),FILE='dwo_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,4),FILE=WDOFN(1:L2)//'dwo_pmp'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,4))  
               READ   (WDO2(JFILE,4),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -616,12 +537,7 @@ SUBROUTINE OUTPUTINIT
             SEGNUM = ADJUSTL(SEGNUM)  
             L      = LEN_TRIM(SEGNUM)  
             WDO2(JFILE,1) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,1),FILE='qwo_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,1),FILE=WDOFN(1:L2)//'qwo_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ENDIF
-            
             REWIND(WDO2(JFILE,1))  
             READ   (WDO2(JFILE,1),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -631,12 +547,7 @@ SUBROUTINE OUTPUTINIT
 126         CONTINUE  
             JDAY1 = 0.0  
             WDO2(JFILE,2) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,2),FILE='two_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,2),FILE=WDOFN(1:L2)//'two_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,2))  
             READ   (WDO2(JFILE,2),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -647,12 +558,7 @@ SUBROUTINE OUTPUTINIT
             JDAY1 = 0.0  
             IF (CONSTITUENTS) THEN  
               WDO2(JFILE,3) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,3),FILE='cwo_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,3),FILE=WDOFN(1:L2)//'cwo_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ENDIF
-
               REWIND(WDO2(JFILE,3))  
               READ   (WDO2(JFILE,3),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -664,12 +570,7 @@ SUBROUTINE OUTPUTINIT
             ENDIF  
             IF (DERIVED_CALC) THEN  
               WDO2(JFILE,4) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,4),FILE='dwo_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,4),FILE=WDOFN(1:L2)//'dwo_pipe'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,4))  
               READ   (WDO2(JFILE,4),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -697,12 +598,7 @@ SUBROUTINE OUTPUTINIT
             SEGNUM = ADJUSTL(SEGNUM)  
             L      = LEN_TRIM(SEGNUM)  
             WDO2(JFILE,1) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,1),FILE='qwo_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,1),FILE=WDOFN(1:L2)//'qwo_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,1))  
             READ   (WDO2(JFILE,1),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -712,12 +608,7 @@ SUBROUTINE OUTPUTINIT
 130         CONTINUE  
             JDAY1 = 0.0  
             WDO2(JFILE,2) = NUNIT; NUNIT = NUNIT+1  
-            !IF(L2==0)THEN
-            !OPEN(WDO2(JFILE,2),FILE='two_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-            !ELSE
             OPEN(WDO2(JFILE,2),FILE=WDOFN(1:L2)//'two_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                
-            !ENDIF
-
             REWIND(WDO2(JFILE,2))  
             READ   (WDO2(JFILE,2),'(//)')  
             DO WHILE (JDAY1 < JDAY)  
@@ -728,12 +619,7 @@ SUBROUTINE OUTPUTINIT
             JDAY1 = 0.0  
             IF (CONSTITUENTS) THEN  
               WDO2(JFILE,3) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,3),FILE='cwo_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,3),FILE=WDOFN(1:L2)//'cwo_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,3))  
               READ   (WDO2(JFILE,3),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -745,12 +631,7 @@ SUBROUTINE OUTPUTINIT
             ENDIF  
             IF (DERIVED_CALC) THEN  
               WDO2(JFILE,4) = NUNIT; NUNIT = NUNIT+1  
-              !IF(L2==0)THEN
-              !  OPEN(WDO2(JFILE,4),FILE='dwo_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')
-              !ELSE
                 OPEN(WDO2(JFILE,4),FILE=WDOFN(1:L2)//'dwo_gate'//SEGNUM(1:L)//'_seg'//SEGNUM2(1:L3)//WDOFN(L1:L1+4),POSITION='APPEND')                  
-              !ENDIF
-
               REWIND(WDO2(JFILE,4))  
               READ   (WDO2(JFILE,4),'(//)')  
               DO WHILE (JDAY1 < JDAY)  
@@ -1068,7 +949,7 @@ ENDIF
           WRITE (CPL(JW),'(8(I8,2X))')    IMX,KMX  
           DO JB=BS(JW),BE(JW)  
             WRITE (CPL(JW),'(9(I8,2X))')  US(JB),DS(JB)  
-            WRITE (CPL(JW),'(9(I8,2X))')  KB(US(JB):DS(JB))  
+            WRITE (CPL(JW),'(9(I8,2X))')  KBI(US(JB):DS(JB))      ! SR 7/10/2024  KB
           END DO  
           WRITE (CPL(JW),'(8(E13.6,2X))') DLX  
           WRITE (CPL(JW),'(8(E13.6,2X))') H  
@@ -1149,7 +1030,7 @@ ENDIF
             'DEPTH(m)','WIDTH(m)','SHADE','ICETH(m)',                         &
             'Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',   &
             (CNAME2(CN(JC)),JC=1,NAC),                                           &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
+            ('     EPI(g/m2)',JE=1,NEP),('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
             (CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),  &
             ('EPLIM_'//CNUM(JE),JE=1,NEP),('ENLIM_'//CNUM(JE),JE=1,NEP),('ELLIM_'//CNUM(JE),JE=1,NEP)
               ELSE
@@ -1157,7 +1038,7 @@ ENDIF
             'DEPTH(m)','WIDTH(m)','SHADE','ICETH(m)',                         &
             'Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',   &
             (CNAME2(CN(JC)),JC=1,NAC),                                           &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
+            ('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
             (CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL) 
               ENDIF
               
@@ -1165,12 +1046,12 @@ ENDIF
                             IF(NEP>0 .AND. EPIPHYTON_CALC(JW,1))THEN
             WRITE (TSR(J),'(*(A,","))') 'JDAY','DLT(s)','ELWS(m)','T2(C)','U(ms-1)','Q(m3s-1)','SRON(Wm-2)','EXT(m-1)',   &  
             'DEPTH(m)','WIDTH(m)','SHADE','ICETH(m)','Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',  (CNAME2(CN(JC)),JC=1,NAC),                     &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),   &
+            ('     EPI(g/m2)',JE=1,NEP),('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),   &
               ('EPLIM_'//CNUM(JE),JE=1,NEP),('ENLIM_'//CNUM(JE),JE=1,NEP),('ELLIM_'//CNUM(JE),JE=1,NEP)    
                             ELSE
             WRITE (TSR(J),'(*(A,","))') 'JDAY','DLT(s)','ELWS(m)','T2(C)','U(ms-1)','Q(m3s-1)','SRON(Wm-2)','EXT(m-1)',   &  
             'DEPTH(m)','WIDTH(m)','SHADE','ICETH(m)','Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',  (CNAME2(CN(JC)),JC=1,NAC),                     &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL)     ! SW 10/20/15  
+            ('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL)     ! SW 10/20/15                      
                             ENDIF
                             
           END IF  
@@ -1180,14 +1061,14 @@ ENDIF
             WRITE (TSR(J),'(*(A,","))')'JDAY','DLT(s)','ELWS(m)','T2(C)','U(ms-1)','Q(m3s-1)','SRON(Wm-2)','EXT(m-1)',   &  
             'DEPTH(m)','WIDTH(m)','SHADE','Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',   &
             (CNAME2(CN(JC)),JC=1,NAC),                     &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
+            ('     EPI(g/m2)',JE=1,NEP),('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
             (CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),   &
               ('EPLIM_'//CNUM(JE),JE=1,NEP),('ENLIM_'//CNUM(JE),JE=1,NEP),('ELLIM_'//CNUM(JE),JE=1,NEP)                   
                ELSE
             WRITE (TSR(J),'(*(A,","))')'JDAY','DLT(s)','ELWS(m)','T2(C)','U(ms-1)','Q(m3s-1)','SRON(Wm-2)','EXT(m-1)',   &  
             'DEPTH(m)','WIDTH(m)','SHADE','Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',   &
             (CNAME2(CN(JC)),JC=1,NAC),                     &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
+            ('     MAC',JM=1,NMC),'     SED(Organic matter in sediments g/m3)','    SEDP(OrgP in sediments gP/m3)','    SEDN(OrgN in sediments gN/m3)','    SEDC(OrgCSediments gC/m3)',   &  
             (CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL)   
                ENDIF
                
@@ -1196,13 +1077,13 @@ ENDIF
             WRITE (TSR(J),'(*(A,","))') 'JDAY','DLT(s)','ELWS(m)','T2(C)','U(ms-1)','Q(m3s-1)','SRON(Wm-2)','EXT(m-1)',   &  
              'DEPTH(m)','WIDTH(m)','SHADE','Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',   &
             (CNAME2(CN(JC)),JC=1,NAC),                     &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),   &
+            ('     EPI(g/m2)',JE=1,NEP),('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),   &
              ('EPLIM_'//CNUM(JE),JE=1,NEP),('ENLIM_'//CNUM(JE),JE=1,NEP),('ELLIM_'//CNUM(JE),JE=1,NEP)                   
             ELSE
             WRITE (TSR(J),'(*(A,","))') 'JDAY','DLT(s)','ELWS(m)','T2(C)','U(ms-1)','Q(m3s-1)','SRON(Wm-2)','EXT(m-1)',   &  
              'DEPTH(m)','WIDTH(m)','SHADE','Tvolavg(C)','NetRad(Wm-2)','SWSolar(Wm-2)','LWRad(Wm-2)','BackRad(Wm-2)','EvapF(Wm-2)','ConducF(Wm-2)','ReaerationCoeff(day-1)',   &
             (CNAME2(CN(JC)),JC=1,NAC),                     &  
-            ('     EPI',JE=1,NEP),('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL)  
+            ('     MAC',JM=1,NMC),(CDNAME2(CDN(JD,JW)),JD=1,NACD(JW)),(KFNAME2(KFCN(JF,JW)),JF=1,NAF(JW)),('PLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('NLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL),('LLIM_'//ADJUSTL(CNAME2(NAS+JA-1)),JA=1,NAL)  
             ENDIF
             
           END IF  
@@ -1257,8 +1138,10 @@ ENDIF
         WRITE (SEGNUM,'(I0)') IWDO(JWD)  
         SEGNUM = ADJUSTL(SEGNUM)  
         L      = LEN_TRIM(SEGNUM)  
-        OPEN  (WDO(JWD,1),FILE=WDOFN(1:L2)//'qwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                   !  SW 9/15/2023     OPEN  (WDO(JWD,1),FILE='qwo_'//SEGNUM(1:L)//'.opt',STATUS='UNKNOWN')
-        OPEN  (WDO(JWD,2),FILE=WDOFN(1:L2)//'two_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                   !'.opt',STATUS='UNKNOWN')   
+        !OPEN  (WDO(JWD,1),FILE=WDOFN(1:L2)//'qwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                   !  SW 9/15/2023     OPEN  (WDO(JWD,1),FILE='qwo_'//SEGNUM(1:L)//'.opt',STATUS='UNKNOWN')
+        !OPEN  (WDO(JWD,2),FILE=WDOFN(1:L2)//'two_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                   !'.opt',STATUS='UNKNOWN')            
+        OPEN  (WDO(JWD,1),FILE=WDOFN(1:L2)//'q_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                   !  SW 9/15/2023     OPEN  (WDO(JWD,1),FILE='qwo_'//SEGNUM(1:L)//'.opt',STATUS='UNKNOWN')
+        OPEN  (WDO(JWD,2),FILE=WDOFN(1:L2)//'t_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                   !'.opt',STATUS='UNKNOWN')            
         
         WRITE (WDO(JWD,1),'(A,I0/A/A)') '$Flow file for segment ',       IWDO(JWD),'To the right of the sum of flows are individual flows starting with downstream then lateral withdrawals','JDAY,QWD(m3s-1),'  
         WRITE (WDO(JWD,2),'(A,I0/A/A)') '$Temperature file for segment ',IWDO(JWD),'To the right of the sum of temperatures are individual temperatures starting with downstream then lateral withdrawals','JDAY,T(C),'  
@@ -1266,11 +1149,15 @@ ENDIF
           IF (IWDO(JWD) >= US(BS(JW)) .AND. IWDO(JWD) <= DS(BE(JW))) EXIT  
         END DO         
         IF (CONSTITUENTS) THEN  
-          OPEN  (WDO(JWD,3),FILE=WDOFN(1:L2)//'cwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                 !'.opt',STATUS='UNKNOWN')
+          !OPEN  (WDO(JWD,3),FILE=WDOFN(1:L2)//'cwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                 !'.opt',STATUS='UNKNOWN')
+          OPEN  (WDO(JWD,3),FILE=WDOFN(1:L2)//'c_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                 !'.opt',STATUS='UNKNOWN')
+
           WRITE (WDO(JWD,3),'(A,I0//(*(A,",")))') '$Concentration file for segment ',IWDO(JWD),'JDAY', (CNAME2(CN(J)),J=1,NAC)                !CNAME2(CN(1:NAC))         
         END IF  
         IF (DERIVED_CALC) THEN  
-          OPEN  (WDO(JWD,4),FILE=WDOFN(1:L2)//'dwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                 !'.opt',STATUS='UNKNOWN')
+!          OPEN  (WDO(JWD,4),FILE=WDOFN(1:L2)//'dwo_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                 !'.opt',STATUS='UNKNOWN')
+          OPEN  (WDO(JWD,4),FILE=WDOFN(1:L2)//'d_'//WDOFN(L2+1:L1-1)//'_'//SEGNUM(1:L)//WDOFN(L1:L1+4),STATUS='UNKNOWN')                 !'.opt',STATUS='UNKNOWN')
+
           WRITE (WDO(JWD,4),'(A,I0//(*(A,",")))') 'Derived constituent file for segment ',IWDO(JWD),'JDAY', (CDNAME2(CDN(J,JW)),J=1,NACD(JW))                 !CDNAME2(CDN(1:NACD(JW),JW))          
         END IF
      ! Add a new qwo_layers_xxx file to output flow from each layer for any structure or withdrawal                   !SR 12/19/2022
