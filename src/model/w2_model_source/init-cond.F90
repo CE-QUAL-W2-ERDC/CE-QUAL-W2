@@ -343,7 +343,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
                 IF (ISO_macrophyte(JW,m))  macrc(j,k,I,m) = macwbci(JW,m)     ! cb 8/24/15
                 IF (VERT_macrophyte(JW,m)) macrc(j,k,I,m) = macrcvp(k,JW,m)    
                 IF (long_macrophyte(JW,m)) macrc(j,k,I,m) = macrclp(K,I,m)
-                SMACRC(J,K,I,M) = macrc(j,k,I,m)
+                !SMACRC(J,K,I,M) = macrc(j,k,I,m)
               END DO
             END DO
 
@@ -386,7 +386,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
                 END IF
                 COLDEP=ELWS(I)-COLB
                 MACRM(J,KT,I,M)=MACRC(J,KT,I,M)*COLDEP*CW(J,I)*DLX(I)
-                SMACRM(J,KT,I,M)=MACRM(J,KT,I,M)
+               ! SMACRM(J,KT,I,M)=MACRM(J,KT,I,M)
               END DO
 
               DO K=KT+1,KB(I)
@@ -397,7 +397,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
                 DO J=JT,JE
 
                   MACRM(J,K,I,M)=MACRC(J,K,I,M)*H2(K,I)*CW(J,I)*DLX(I)
-                  SMACRM(J,K,I,M)=MACRM(J,K,I,M)
+                 ! SMACRM(J,K,I,M)=MACRM(J,K,I,M)
                 END DO
 
               END DO
@@ -497,9 +497,9 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
         YEAROLD=YEAR
         IF(CO2YEARLYPPM=='      ON')THEN
             IF(YEAR<1980)THEN
-             PCO2 = (0.000041392*REAL(YEAR*YEAR*YEAR) - 0.231409975*REAL(YEAR*YEAR) + 430.804190829*REAL(YEAR) - 266735.857433224)*PALT(DS(BE(1)))*1.0E-6      ! PPM CO2 AND ALTITUDE CORRECTION 
+             PCO2 = (0.000041392*REAL(YEAR)*real(YEAR)*real(YEAR) - 0.231409975*REAL(YEAR)*real(YEAR) + 430.804190829*REAL(YEAR) - 266735.857433224)*PALT(DS(BE(1)))*1.0E-6      ! PPM CO2 AND ALTITUDE CORRECTION 
             ELSE
-             PCO2  = (0.015903*YEAR**2 - 61.799598*YEAR + 60357.055057)*PALT(DS(BE(1)))*1.0E-6
+             PCO2  = (0.015903*real(YEAR)*real(year) - 61.799598*real(YEAR) + 60357.055057)*PALT(DS(BE(1)))*1.0E-6    ! SW 2/29/2024
             ENDIF
         ELSE
         PCO2=PCO2ATMPPM*PALT(DS(BE(1)))*1.0E-6    ! IN ATM

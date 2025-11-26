@@ -6,12 +6,15 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC;USE TRIDIAG_V
   Use CEMAVars
   Use CEMASedimentDiagenesis, only: SedimentFlux; USE ALGAE_TOXINS
+  USE AlgaeReduceGasTransfer
   
   IMPLICIT NONE
   EXTERNAL RESTART_OUTPUT
   REAL :: TPALG,TNALG,TPZ,TNZ,TPBOD,TNBOD
 
+
       IF(MACROPHYTE_ON.AND.UPDATE_KINETICS)CALL POROSITY 
+      IF(UPDATE_KINETICS)IMM=IMM+1   ! FOR OUTPUT OF REDUCE GAS TRANSFER FROM ALGAE ACCUMULATION IN SURFACE LAYER
       DO JW=1,NWB
         KT = KTWB(JW)
         DO JB=BS(JW),BE(JW)
@@ -38,11 +41,58 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
           end if
         ENDIF
 
+        IF(MACROPHYTE_ON)THEN
+!C  IF DEPTH IN KTI LAYER BECOMES GREATER THAN THRESHOLD, SETTING
+!C      MACROPHYTE CONC. IN KTI COLUMN TO INITIAL CONC.
+          DO I=IU,ID
+!            IF (EL(KT,I)-Z(I)*COSA(JB) > EL(KTI(I),I)) THEN
+!!C  KEEPING TRACK IF COLUMN KTI HAS MACROPHYTES
+!                  IF(KTI(I).GT.2)KTICOL(I)=.FALSE.
+!            ELSE                         
+!                  KTICOL(I)=.TRUE.  
+!            ENDIF    
+              
+            DEPKTI=ELWS(I)-EL(KTI(I)+1,I)
+
+!******* MACROPHYTES, SETTING CONC. OF MACROPHYTES IN NEW COLUMNS TO
+!********* INITIAL CONCENTRATION IF COLUMN DEPTH IS GREATER THAN 'THRKTI'
+            IF(.NOT.KTICOL(I).AND.DEPKTI.GE.THRKTI)THEN
+              KTICOL(I)=.TRUE.
+              JT=KTI(I)
+              MACT(JT,KT,I)=0.0
+              DO M=1,NMC
+                !MACRC(JT,KT,I,M)=MACWBCI(JW,M)
+                IF (ISO_macrophyte(JW,m))  macrc(jt,kt,I,m) = macwbci(JW,m)     ! cb 3/7/16
+                IF (VERT_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
+                IF (long_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
+                COLB=EL(KTI(I)+1,I)
+                COLDEP=ELWS(I)-COLB
+                !MACRM(JT,KT,I,M)=MACWBCI(JW,M)*COLDEP*CW(JT,I)*DLX(I)
+                MACRM(JT,KT,I,M)=macrc(jt,kt,I,m)*COLDEP*CW(JT,I)*DLX(I)         ! cb 3/17/16                 
+                MACT(JT,KT,I)=MACT(JT,KT,I)+MACWBCI(JW,M)
+                MACMBRT(JB,M) = MACMBRT(JB,M)+MACRM(JT,KT,I,M)
+              END DO
+            END IF
+
+!****** MACROPHYTES, WHEN COLUMN DEPTH IS LESS THAN 'THRKTI', ZEROING OUT CONC.
+            IF(KTICOL(I).AND.DEPKTI.LT.THRKTI)THEN
+              KTICOL(I)=.FALSE.
+              JT=KTI(I)
+              MACT(JT,KT,I)=0.0
+              DO M=1,NMC
+                MACMBRT(JB,M) = MACMBRT(JB,M)-MACRM(JT,KT,I,M)
+                MACRC(JT,KT,I,M)=0.0
+                MACRM(JT,KT,I,M)=0.0
+              END DO
+            END IF
+          END DO
+
           DO M=1,NMC
             IF (MACROPHYTE_CALC(JW,M))THEN
               CALL MACROPHYTE(M)
             END IF
           END DO
+        END IF
 
           IF (UPDATE_KINETICS) THEN
             IF (UPDATE_RATES) THEN
@@ -447,12 +497,12 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
           
         END DO    ! JB loop
         
-        ! Atmospheric Depsition original unit kg/km2/year
+        ! Atmospheric Depsition unit kg/km2/year if state variable in g/m3 or mg/l; or in mg/km2/year for Hg in ng/l or ug/m3
         IF(ATM_DEPOSITION(JW))THEN
             DO JB=BS(JW),BE(JW)
                 DO I=CUS(JB),DS(JB)
                     DO JAC=1,NACATD(JW)
-                            CSSB(KT,I,ATMDCN(JAC,JW))=CSSB(KT,I,ATMDCN(JAC,JW))+ATM_DEP_LOADING(ATMDCN(JAC,JW),JW)*BI(KT,I)*DLX(I)*3.17098E-11   ! Conversion: kg/km2/year to g/m2/s 1000/(365*86400*1000*1000)=3.17098E-11
+                            CSSB(KT,I,ATMDCN(JAC,JW))=CSSB(KT,I,ATMDCN(JAC,JW))+ATM_DEP_LOADING(ATMDCN(JAC,JW),JW)*BI(KT,I)*DLX(I)*3.17098E-11   ! Conversion: kg/km2/year to g/m2/s 1000/(365*86400*1000*1000)=3.17098E-11; final unit g/s except for Hg where it is ug/s
                             IF(ATMDCN(JAC,JW)==NPO4.OR.ATMDCN(JAC,JW)==NLPOMP.OR.ATMDCN(JAC,JW)==NRPOMP)THEN 
                             ATMDEP_P(JW)=ATMDEP_P(JW)+ATM_DEP_LOADING(ATMDCN(JAC,JW),JW)*BI(KT,I)*DLX(I)*3.17098E-11*DLT/1000.    ! P MASS BALANCE IN KG - CUMULATIVE
                             ELSEIF(ATMDCN(JAC,JW)==NNO3.OR.ATMDCN(JAC,JW)==NLPOMN.OR.ATMDCN(JAC,JW)==NRPOMN.OR.ATMDCN(JAC,JW)==NNH4)THEN 
@@ -512,7 +562,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
             DO I=IU,ID
               DO K=KT,KB(I)      
               DT(K,I) = (C1S(K,I,JC)*BH2(K,I)/DLT+(ADX(K,I)*BHR1(K,I)-ADX(K,I-1)*BHR1(K,I-1))/DLX(I)+(1.0D0-THETA(JW))                     &
-                    *(ADZ(K,I)*BB(K,I)-ADZ(K-1,I)*BB(K-1,I))+CSSB(K,I,JC)/DLX(I))*DLT/BH1(K,I)+CSSK(K,I,JC)*DLT
+                    *(ADZ(K,I)*BB(K,I)-ADZ(K-1,I)*BB(K-1,I))+CSSB(K,I,JC)/DLX(I))*DLT/BH1(K,I)+CSSK(K,I,JC)*DLT        ! CSSB g/s or ng/s if Hg   CSSK: g/m3/s or ng/m3/s for Hg
               END DO                                                    
             END DO
             DO I=IU,ID
