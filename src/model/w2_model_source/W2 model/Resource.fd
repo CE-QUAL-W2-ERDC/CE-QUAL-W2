@@ -1,8 +1,7 @@
 !
-! C:\Scott\research\corps of engineers\tomcole\w2code\Version 4.3\v4.3+Z
-! hongUpdates\W2 model\Resource.fd generated from C:\Scott\research\corp
-! s of engineers\tomcole\w2code\Version 4.3\v4.3+ZhongUpdates\W2 model\R
-! esource.h
+! D:\electronics\software\cequalw2\ce-qual-w2\src\model\w2_model_source\
+! W2 model\Resource.fd generated from D:\electronics\software\cequalw2\c
+! e-qual-w2\src\model\w2_model_source\W2 model\Resource.h
 !
       integer, parameter :: dew_point_temperature = 1018
       integer, parameter :: low = 1043
