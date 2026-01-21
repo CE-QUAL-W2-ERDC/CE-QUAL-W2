@@ -18,7 +18,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
 !**                                                 Task 1.1.1: Zero Variables                                                    **
 !***********************************************************************************************************************************
   IceQSS = 0.0d00; WATER_AGE_ACTIVE=.FALSE.   ! SR 7/27/2017
-  ATM_DEP_LOADING=0.0;IN_TOXIN=0.0
+  ATM_DEP_LOADING=0.0;IN_TOXIN=0.0;AGZ=0.0  ! SW 8/2024
   KB     = 0;   KBR    = 0;   NAC    = 0;   NTAC   = 0;   NACD   = 0;   NACIN  = 0;   NACTR  = 0;   NACDT  = 0;   NACPR  = 0
   NDSP   = 0;   HMAX   = 0;   KBMAX  = 0;   DLXMAX = 0;   KBQIN  = 0;   KTQIN  = 0;   QGT    =0.0;  QSP    =0.0    ! SW 8/26/15 Initialize Qgt and Qsp for screen output on restart
   NAF    = 0;   TISS   = 0.0;  CSHE   = 0.0; CIN    = 0.0; TIN    = 0.0; EV     = 0.0; NACATD=0
@@ -33,11 +33,12 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   AVHR   = 0.0D0; GRAV   = 0.0D0; KBP    = 0  ; DZT    = 0.0D0; AZT    = 0.0D0; KFJW   = 0.0; QC     = 0.0D0; YSS    = 0.0; YSTS   = 0.0
   QWD    = 0.0D0; QDTR   = 0.0D0; TTR    = 0.0; CTR    = 0.0; TDTR   = 0.0; QOLDS  = 0.0D0; DTPS   = 0.0; VSTS   = 0.0; VSS    = 0.0
   EGT2   = 0.0; HAB    = 100.0; sedpinflux=0.0; sedninflux=0.0 ; FPSS=0.0; FPFE=0.0  ! SR 3/2019
-  RS=0.0;RN=0.0;RB=0.0;RE=0.0;RC=0.0;RANLW=0.0;TICAP=0.0;TICZR=0.0;TICEP=0.0;TICMC=0.0; VOL=0.0             
+  RS=0.0;RN=0.0;RB=0.0;RE=0.0;RC=0.0;RANLW=0.0;TICAP=0.0;TICZR=0.0;TICEP=0.0;TICMC=0.0; VOL=0.0;QERR=0.0             
   sdfirstadd=.true.   ! cb 9/3/17
   BR_NOTECPLOT=.TRUE.    ! SW 8/27/2019
+  QWDSAV = 0.0D0;                                                                                                     !SR 06/29/2021
   IF (.NOT. RESTART_IN) THEN
-    BR_INACTIVE=.FALSE.; WARNING_OPEN          = .FALSE.;JDMIN=0; EPC=0.0
+    BR_INACTIVE=.FALSE.; WARNING_OPEN          = .FALSE.;JDMIN=0; EPC=0.0; NXTMUK=TMSTRT 
     NSPRF  = 0;   IZMIN  = 0;   KTWB   = 2;   KMIN   = 1;   IMIN   = 1; NH3GASLOSS=0.0
     T1     = 0.0D0; T2     = 0.0D0; C1     = 0.0D0; C2     = 0.0D0; CD     = 0.0; CIN    = 0.0; C1S    = 0.0; KF     = 0.0; CMBRT  = 0.0
     KFS    = 0.0; U      = 0.0D0; W      = 0.0D0; SU     = 0.0D0; SW     = 0.0D0; SAZ    = 0.0D0; AZ     = 0.0D0; ESBR   = 0.0; EPD    = 0.0
@@ -54,7 +55,8 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
     ZMIN   = -1000.0
     TKE=0.0                                                     ! SG 10/4/07
     SEDP=0.0;SEDC=0.0;SEDN=0.0;DLTAV=0.0;ELTMJD=0.0
-    MACMBRT=0.0; MACRC=0.0;SMACRC=0.0;MAC=0.0;SMAC=0.0;MACRM=0.0;EPM=0.0;macss=0.0 ! cb 3/8/16
+    !MACMBRT=0.0; MACRC=0.0;SMACRC=0.0;MAC=0.0;SMAC=0.0;MACRM=0.0;EPM=0.0;macss=0.0 ! cb 3/8/16
+    MACMBRT=0.0; MACRC=0.0;MAC=0.0;MACRM=0.0;EPM=0.0;macss=0.0 ! cb 3/8/16
     KTICOL=.FALSE.
   END IF
   ANLIM = 1.0; APLIM = 1; ASLIM = 1.0; ALLIM = 1.0; ENLIM = 1.0; EPLIM = 1; ESLIM = 1.0; ELLIM = 1.0; KLOC = 1; ILOC = 1
@@ -292,8 +294,8 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   KFNAME(48) = 'RPOM decay - sink, kg/day                    '; KFNAME(49) = 'LPOM algal production - source, kg/day       '
   KFNAME(50) = 'LPOM epiphyton production - source, kg/day   '; KFNAME(51) = 'LPOM net settling - source/sink, kg/day      '
   KFNAME(52) = 'RPOM net settling - source/sink, kg/day      '; KFNAME(53) = 'CBOD decay - sink, kg/day                    '
-  KFNAME(54) = 'DO algal production  - source, kg/day        '; KFNAME(56) = 'DO algal respiration - sink, kg/day          '   ! cb 6/2/2009
-  KFNAME(55) = 'DO epiphyton production  - source, kg/day    '; KFNAME(57) = 'DO epiphyton respiration - sink, kg/day      '   ! cb 6/2/2009
+  KFNAME(54) = 'DO algal production  - source, kg/day        '; KFNAME(55) = 'DO algal respiration - sink, kg/day          '   !
+  KFNAME(56) = 'DO epiphyton production  - source, kg/day    '; KFNAME(57) = 'DO epiphyton respiration - sink, kg/day      '   !
   KFNAME(58) = 'DO POM decay - sink, kg/day                  '; KFNAME(59) = 'DO DOM decay - sink, kg/day                  '
   KFNAME(60) = 'DO OM decay - sink, kg/day                   '; KFNAME(61) = 'DO nitrification - sink, kg/day              '
   KFNAME(62) = 'DO CBOD uptake - sink, kg/day                '; KFNAME(63) = 'DO reaeration - source/sink, kg/day          '
@@ -367,7 +369,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
 
 ! Convert rates from per-day to per-second
 
-  IF (CONSTITUENTS) THEN   
+  IF (CONSTITUENTS) THEN  
     AE     = AE    /DAY; AM     = AM    /DAY; AR     = AR    /DAY; AG    = AG    /DAY; AS     = AS    /DAY
     EE     = EE    /DAY; EM     = EM    /DAY; ER     = ER    /DAY; EG    = EG    /DAY; EB     = EB    /DAY
     CGS    = CGS   /DAY; CG0DK  = CG0DK /DAY; CG1DK  = CG1DK /DAY; SSS   = SSS   /DAY
@@ -618,6 +620,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
 
   ALLOCATE (ESTR(NST,NBR),WSTR(NST,NBR),QSTR(NST,NBR),KTSW(NST,NBR),KBSW(NST,NBR),SINKC(NST,NBR),POINT_SINK(NST,NBR),QNEW(KMX),tavg(nst,nbr), tavgw(NWD+NSP+NGT+NPI+NPU),CAVG(NST,NBR,NCT),CDAVG(NST,NBR,NDC),CAVGW(NWD+NSP+NGT+NPI+NPU,NCT),CDAVGW(NWD+NSP+NGT+NPI+NPU,NDC))   
   ALLOCATE (ACTIVE_RULE_W2SELECTIVE(NST,NBR)); ACTIVE_RULE_W2SELECTIVE=.FALSE.
+  ALLOCATE (QSTRSAV(NST,NBR))                                                                                         !SR 06/29/2021
   TAVGW=0.0
   TAVG=0.0
   CAVG=0.0
@@ -626,6 +629,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
   CDAVGW=0.0
   
   QSTR = 0.0
+  QSTRSAV = 0.0                                                                                                       
   DO JB=1,NBR
     ESTR(1:NSTR(JB),JB)  = ESTRT(1:NSTR(JB),JB)
     KTSW(1:NSTR(JB),JB)  = KTSWT(1:NSTR(JB),JB)
@@ -784,6 +788,7 @@ IF(IncludeCEMASedDiagenesis) call InitCond_SedFlux
     SU    = U
     SW    = W
     SAZ   = AZ
+    SELWS = ELWS
     SKTI  = KTI
     SBKT  = BKT
     SAVH2 = AVH2

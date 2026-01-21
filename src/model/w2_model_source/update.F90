@@ -3,7 +3,7 @@ SUBROUTINE UPDATE
 USE MAIN
 USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINETIC; USE SHADEC; USE EDDY
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
-  USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC  
+  USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC; USE CEMAVars, ONLY: SD_TC, JDAY_INIT  
   IMPLICIT NONE
   EXTERNAL RESTART_OUTPUT
 
@@ -12,6 +12,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
 !***********************************************************************************************************************************
     
     SZ     = Z
+    SELWS  = ELWS
     SKTI   = KTI
     SBKT   = BKT
     VOLUH2 = QUH1  *DLT
@@ -34,10 +35,10 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
       ENDIF
           
  ! CODE MOVED to after wse computation       ELWS(CUS(JB):DS(JB)+1) = EL(KT,CUS(JB):DS(JB)+1)-Z(CUS(JB):DS(JB)+1)*COSA(JB)
-        DO I=US(JB)-1,DS(JB)
-          AVHR(KT,I) = H1(KT,I)+(H1(KT,I+1)-H1(KT,I))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)                               !SW 07/29/04
-        END DO
-        AVHR(KT,DS(JB)+1)=H1(KT,DS(JB)+1)                                                                              !SW 03/08/05
+        !DO I=US(JB)-1,DS(JB)
+        !  AVHR(KT,I) = H1(KT,I)+(H1(KT,I+1)-H1(KT,I))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)                               !SW 07/29/04
+        !END DO
+        !AVHR(KT,DS(JB)+1)=H1(KT,DS(JB)+1)                                                                              !SW 03/08/05
         DO I=CUS(JB)-1,DS(JB)+1
           DO K=KT,KB(I)     !DO CONCURRENT(K=KT:KB(I))   !FORALL          !DO K=KTWB(JW),KB(I)
             QSS(K,I)   = 0.0D0
@@ -47,6 +48,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
             T2(K,I)    = T1(K,I)
             SAZ(K,I)   = AZ(K,I)
             H2(K,I)    = H1(K,I)
+            BHRATIO(K,I) = BH2(K,I)/BH1(K,I)   ! USED FOR TKE COMPUTATION
             BH2(K,I)   = BH1(K,I)
             BHR2(K,I)  = BHR1(K,I)
             AVH2(K,I)  = AVH1(K,I)
@@ -57,8 +59,6 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
       END DO
     END DO
     IF (CONSTITUENTS) THEN
-     ! CSSUH2 = CSSUH1*DLT
-     ! CSSDH2 = CSSDH1*DLT
       DO JW=1,NWB
         KT = KTWB(JW)
         DO JB=BS(JW),BE(JW)
@@ -97,33 +97,30 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
       END DO
     END IF
 
-    DO JW = 1,NWB
-      KT = KTWB(JW)
-      DO M=1,NMC
-        IF (MACROPHYTE_CALC(JW,M)) THEN
-          DO JB=BS(JW),BE(JW)
-            DO I=US(JB),DS(JB)
-              DO K=KT,KB(I)
-                SMAC(K,I,M)=MAC(K,I,M)
-                DO J=1,KMX
-                  SMACRC(J,K,I,M)=MACRC(J,K,I,M)
-                  SMACRM(J,K,I,M)=MACRM(J,K,I,M)
-                END DO
-              END DO
-            END DO
-          END DO
-        END IF
-      END DO
-    END DO
+    !DO JW = 1,NWB
+    !  KT = KTWB(JW)
+    !  DO M=1,NMC
+    !    IF (MACROPHYTE_CALC(JW,M)) THEN
+    !      DO JB=BS(JW),BE(JW)
+    !        DO I=US(JB),DS(JB)
+    !          DO K=KT,KB(I)
+    !            SMAC(K,I,M)=MAC(K,I,M)
+    !            DO J=1,KMX
+    !              SMACRC(J,K,I,M)=MACRC(J,K,I,M)
+    !              SMACRM(J,K,I,M)=MACRM(J,K,I,M)
+    !            END DO
+    !          END DO
+    !        END DO
+    !      END DO
+    !    END IF
+    !  END DO
+    !END DO
 
   DO JW = 1,NWB 
     IF (ULTIMATE(JW)) THEN   ! SR 5/15/06
       IF(LAYERCHANGE(JW) == .TRUE.)THEN
-      DO K=KTWB(JW),KMX    ! only need to update this for KT - if layer change then update for all variables to be safe                                               !DO K=2,KMX
+      DO K=KTWB(JW),KMX    ! only need to update this for KT - if layer change then update for all variables to be safe esp for seg additions                       !DO K=2,KMX   KTWB(JW),KMX
       RATZ(K,JW)  =  AVH2(K-1,DS(BE(JW)))/AVH2(K,DS(BE(JW)))                                         ! SW 5/20/05
-      !CURZ1(K,JW) =  2.0D0*H(K,JW)**2/(AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))/AVH2(K-1,DS(BE(JW)))   ! SW 5/20/05
-      !CURZ2(K,JW) = -2.0D0*H(K,JW)**2/(AVH2(K-1,DS(BE(JW)))*AVH2(K,DS(BE(JW))))                        ! SW 5/20/05
-      !CURZ3(K,JW) =  2.0D0*H(K,JW)**2/(AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))/AVH2(K,DS(BE(JW)))     ! SW 5/20/05
       CURZ1(K,JW) =  2.0D0*H(K,JW)*H(K,JW)/((AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))*AVH2(K-1,DS(BE(JW))))   ! SW 5/20/05   4/20/16 SPEED
       CURZ2(K,JW) = -2.0D0*H(K,JW)*H(K,JW)/(AVH2(K-1,DS(BE(JW)))*AVH2(K,DS(BE(JW))))                          ! SW 5/20/05
       CURZ3(K,JW) =  2.0D0*H(K,JW)*H(K,JW)/((AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))*AVH2(K,DS(BE(JW))))     ! SW 5/20/05
@@ -131,9 +128,6 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
       ELSE
       DO K=KTWB(JW),KTWB(JW)+1
       RATZ(K,JW)  =  AVH2(K-1,DS(BE(JW)))/AVH2(K,DS(BE(JW)))                                         ! SW 5/20/05
-      !CURZ1(K,JW) =  2.0D0*H(K,JW)**2/(AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))/AVH2(K-1,DS(BE(JW)))   ! SW 5/20/05
-      !CURZ2(K,JW) = -2.0D0*H(K,JW)**2/(AVH2(K-1,DS(BE(JW)))*AVH2(K,DS(BE(JW))))                        ! SW 5/20/05
-      !CURZ3(K,JW) =  2.0D0*H(K,JW)**2/(AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))/AVH2(K,DS(BE(JW)))     ! SW 5/20/05
       CURZ1(K,JW) =  2.0D0*H(K,JW)*H(K,JW)/((AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))*AVH2(K-1,DS(BE(JW))))   ! SW 5/20/05  4/20/16 SPEED
       CURZ2(K,JW) = -2.0D0*H(K,JW)*H(K,JW)/(AVH2(K-1,DS(BE(JW)))*AVH2(K,DS(BE(JW))))                        ! SW 5/20/05
       CURZ3(K,JW) =  2.0D0*H(K,JW)*H(K,JW)/((AVH2(K-1,DS(BE(JW)))+AVH2(K,DS(BE(JW))))*AVH2(K,DS(BE(JW))))     ! SW 5/20/05
@@ -176,13 +170,23 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
     CALL GREGORIAN_DATE
     IF(CONSTITUENTS.AND.YEAR/=YEAROLD.AND.CO2YEARLYPPM=='      ON')THEN   ! UPDATE PCO2 FOR PH/TIC IF YEAR CHANGES STEP CHANGES
             IF(YEAR<1980)THEN
-             PCO2 = (0.000041392*REAL(YEAR*YEAR*YEAR) - 0.231409975*REAL(YEAR*YEAR) + 430.804190829*REAL(YEAR) - 266735.857433224)*PALT(DS(BE(1)))*1.0E-6      ! PPM CO2 AND ALTITUDE CORRECTION 
+             !PCO2 = (0.000041392*REAL(YEAR*YEAR*YEAR) - 0.231409975*REAL(YEAR*YEAR) + 430.804190829*REAL(YEAR) - 266735.857433224)*PALT(DS(BE(1)))*1.0E-6      ! PPM CO2 AND ALTITUDE CORRECTION 
+             PCO2 = (0.000041392*REAL(YEAR)*real(YEAR)*real(YEAR) - 0.231409975*REAL(YEAR)*real(YEAR) + 430.804190829*REAL(YEAR) - 266735.857433224)*PALT(DS(BE(1)))*1.0E-6  
             ELSE
-             PCO2  = (0.015903*YEAR*YEAR - 61.799598*YEAR + 60357.055057)*PALT(DS(BE(1)))*1.0E-6
+             !PCO2  = (0.015903*YEAR*YEAR - 61.799598*YEAR + 60357.055057)*PALT(DS(BE(1)))*1.0E-6
+              PCO2  = (0.015903*real(YEAR)*real(year) - 61.799598*real(YEAR) + 60357.055057)*PALT(DS(BE(1)))*1.0E-6            ! SW 2/29/2024
             ENDIF
         YEAROLD=YEAR
     ENDIF
+    
     UPDATE_KINETICS = .FALSE.
-    IF (MOD(NIT,CUF) == 0) UPDATE_KINETICS = .TRUE.
+    IF ((CUF > 0 .AND. MOD(NIT,INT(CUF)) == 0) .OR. (CUF <= 0 .AND. JDAY >= NXTMUK)) THEN      !SR 07/03/2023
+        UPDATE_KINETICS = .TRUE.
+        SD_tc=JDAY-JDAY_INIT   ! SW 10/16/2022 FOR SED DIAG MODEL
+        JDAY_INIT=JDAY
+        IF (CUF <= 0) NXTMUK = JDAY + ABS(CUF)                  !SR 07/03/2023
+    ENDIF
+
+    
     RETURN
     END SUBROUTINE UPDATE
