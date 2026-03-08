@@ -8,9 +8,9 @@ SUBROUTINE KINETICS
   USE MACROPHYTEC; USE ZOOPLANKTONC; USE MAIN, ONLY:NPBALC, EPIPHYTON_CALC, BOD_CALC, &
       ALG_CALC, BOD_CALCN, BOD_CALCP, PO4_CALC, N_CALC, DSI_CALC, STANDING_BIOMASS_DECAY, NH3_DER, & 
       CDWBC,KF_NH4_SR,KF_NH4_SD,KF_PO4_SR,KF_PO4_SD,NLDOM, NRDOM, NLPOM, NRPOM, NDGP, ORGC_CALC, CO2_DER, HCO3_DER, CO3_DER,  &
-      CBODU_DER,TOTSS_DER,O2DG_DER,TURB_DER,SECCHI_DER, CHLA_DER, GAS_TRANSFER_UPDATE
-  USE ALGAE_TOXINS
-  Use CEMAVars
+      CBODU_DER,TOTSS_DER,O2DG_DER,TURB_DER,SECCHI_DER, CHLA_DER, GAS_TRANSFER_UPDATE, NFEII, NFEOOH, NMNII, NMNO2
+  USE ALGAE_TOXINS; USE MetFileRegion
+  Use CEMAVars; USE AlgaeReduceGasTransfer
 
 ! Type declarations
   IMPLICIT NONE
@@ -33,7 +33,7 @@ SUBROUTINE KINETICS
   ! enhanced pH buffering end
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: OMTRM,  SODTRM, NH4TRM, NO3TRM, BIBH2
   REAL, ALLOCATABLE, DIMENSION(:,:)   :: DOM,    POM,    PO4BOD, NH4BOD, TICBOD
-  REAL, ALLOCATABLE, DIMENSION(:,:)   :: LAM2M  
+  REAL, ALLOCATABLE, DIMENSION(:,:)   :: LAM2M,  FEMN_TEMP  
   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: ATRM,   ATRMR,  ATRMF
   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: ETRM,   ETRMR,  ETRMF
   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: ASETTLE, DEN_AVG, DENP, DEN1, DEN2, ALLIM_OLD  ! CO 6/9/2019
@@ -61,10 +61,27 @@ SUBROUTINE KINETICS
   ALLOCATE (PO4BOD(KMX,IMX),   NH4BOD(KMX,IMX),    TICBOD(KMX,IMX))
   ALLOCATE (ATRM(KMX,IMX,NAL), ATRMR(KMX,IMX,NAL), ATRMF(KMX,IMX,NAL))
   ALLOCATE (ETRM(KMX,IMX,NEP), ETRMR(KMX,IMX,NEP), ETRMF(KMX,IMX,NEP))
-  ALLOCATE (lam2m(KMX,kmx),    BIBH2(KMX,IMX), ALGAE_SETTLING(NAL))
+  ALLOCATE (lam2m(KMX,kmx),    BIBH2(KMX,IMX), ALGAE_SETTLING(NAL), FEMN_TEMP(KMX,IMX) )
   ALLOCATE (FE(KMX,IMX))       
-  TICBOD=0.0; FE=0.0
+  TICBOD=0.0; FE=0.0; FEMN_TEMP=1.0
   
+        INQUIRE(FILE='W2_AlgaeGasReduction.csv',EXIST=REDUCE_GAS_TRANSFER)     ! SW 8/2024
+        IF(REDUCE_GAS_TRANSFER)THEN
+        OPEN(2450,FILE='W2_AlgaeGasReduction.csv',STATUS='OLD')
+        ALLOCATE(I_ALG(NAL))   ! THIS IS 0 OR 1 IF TO INCLUDE IN TOTAL ALGAE
+        READ(2450,*)
+        READ(2450,*)ICHAR2,IOUTFREQ
+        IF(ICHAR2=='ON')THEN
+            READ(2450,*)
+            READ(2450,*)KHS_ALG,(I_ALG(N),N=1,NAL)
+            OPEN(ALGRED,FILE='AlgaeRedFactorOutput.csv',status='unknown')
+            WRITE(ALGRED,'(A,f8.3,a,<NAL>(a,i3,a,i3,a))')'JDAY,I,AlgSum(surface)gm-3,ReductionFactor, KHS=,',khs_alg,',Active algae groups(=1):,',('Group:',N,'(',i_alg(n),')',n=1,nal) 
+        ELSE
+            REDUCE_GAS_TRANSFER = .FALSE.
+        ENDIF
+        CLOSE(2450)
+        ENDIF
+
   !ZS=0.0    ! SW 1/29/2019
   !ZSR=0.0
   !ZOOP_SETTLING_EXIST=.FALSE.
@@ -269,6 +286,7 @@ ENTRY KINETIC_RATES
       ! Gas Transfer
       IF(GAS_TRANSFER_UPDATE)THEN
           CALL GAS_TRANSFER
+          IF(REDUCE_GAS_TRANSFER)CALL ReduceReaeration
       ENDIF
 
     DO K=KT,KB(I)
@@ -280,6 +298,10 @@ ENTRY KINETIC_RATES
       SEDDP(K,I)        =   SODTRMDDO3*SEDP(K,I)   !SODTRM(K,I) *SDKV(K,I)   *SEDP(K,I) *DO3(K,I)
       SEDDN(K,I)        =   SODTRMDDO3*SEDN(K,I)   !SODTRM(K,I) *SDKV(K,I)   *SEDN(K,I) *DO3(K,I)
       SEDDC(K,I)        =   SODTRMDDO3*SEDC(K,I)   !SODTRM(K,I) *SDKV(K,I)   *SEDC(K,I) *DO3(K,I)
+      
+      IF(CAC(NFEII)=='      ON' .OR.  CAC(NFEOOH)=='      ON' .OR. CAC(NMNII)=='      ON' .OR.  CAC(NMNO2)=='      ON')THEN
+          FEMN_TEMP(K,I)=1.05**(T2(K,I)-20.)
+      ENDIF
 
       IF(STANDING_BIOMASS_DECAY)THEN
       SEDD1(K,I)         =   SODTRM(K,I) *SDK1(jw)   *SED1(K,I) *DO3(K,I)
@@ -298,7 +320,7 @@ ENTRY KINETIC_RATES
           F_NH3(K,I)=1./(1.+10**(-PH(K,I))/K_NH3_NH4)     ! FRACTION NH3
           NH4D(K,I)    =   NH4D(K,I)*(1.-F_NH3(K,I))     ! NH4 FRACTION FOR NITRIFICATION
           IF(K==KT)THEN
-              K_NH3=KG_H2O_CONSTANT(JW)*WIND2(I)*KH_NH3/(RGAS*(T2(K,I)+273.15))*5.86806E-6       !0.5*1.014/86400.=5.86806E-6         ! Gas transfer coefficient for NH3: based on water vapor, gas film controls, 1.014 is ratio of (MW H2o/MW NH3) ^0.25, 0.5 is wind reduction based on wind measuring height, units: m/s
+              K_NH3=(KG_H2O_CONSTANT(JW)*WIND2(I)*KH_NH3/(RGAS*(T2(K,I)+273.15)))*1.1736E-5   !SW 11/8/2023 5.86806E-6       !Removed the 0.5 coefficient for the wind speed such that this is now: 1.014/86400.=5.86806E-6  rather than           0.5*1.014/86400.=5.86806E-6         ! Gas transfer coefficient for NH3: based on water vapor, gas film controls, 1.014 is ratio of (MW H2o/MW NH3) ^0.25, 0.5 is wind reduction based on wind measuring height, units: m/s
               NH3GAS(K,I)=K_NH3*NH4(K,I)*F_NH3(K,I)*BI(KT,I)/BH2(KT,I)
          ENDIF
       ENDIF
@@ -418,7 +440,7 @@ ENTRY KINETIC_RATES
     ENDIF
     
       IF(K.NE.KT)THEN
-          SSSI(K,I) = SSSO(K-1,I)*BI(K,I)/BI(K-1,I)   ! SR 3/2019
+          SSSI(K,I) = SSSO(K-1,I)                     !SW 9/22/2022 - incorrect fix *BI(K,I)/BI(K-1,I) SR 3/2019
       ELSE
           SSSI(K,I)=0.0                               ! SW 3/2019
       ENDIF
@@ -639,7 +661,12 @@ ENTRY KINETIC_RATES
         ENDIF
       do i=iu,id
 !**** Limiting factor
-      LIGHT = (1.0-BETA(JW))*SRON(JW)*SHADE(I)/ASAT(JA)
+      If(Met_Regions)then
+      LIGHT = (1.0-BETA(JW))*SRON(WB_MetRegions(JW))*SHADE(I)/ASAT(JA)
+      else
+      LIGHT = (1.0-BETA(JW))*SRON(JW)*SHADE(I)/ASAT(JA)    
+      endif
+      
       LAM1  =  LIGHT
       LAM2  =  LIGHT
       DO K=KT,KB(I)
@@ -666,7 +693,12 @@ ENTRY KINETIC_RATES
                 IF(ALGMIGRATION_DEBUG==1)WRITE(2451,'("Model1:,",3(I3,","),3(F15.5,","))')K,I,JA,JDAY,ASETTLE(K,I,JA)
             ELSEIF(MIGRATE_MODEL(MIGI) == 2)THEN   !  TIME AND SPACE VARYING VELOCITY
                 IF(DEPTH_CALC_ONOFF(MIGI)==1)THEN  ! CALCULATE DEPTH LIMIT FOR INCREASING MIGRATION BASED ON LIGHT
-                    LIGHT=(1.0-BETA(JW))*SRON(JW)*SHADE(I)
+                    if(Met_Regions)then
+                    LIGHT=(1.0-BETA(JW))*SRON(WB_MetRegions(JW))*SHADE(I)
+                    else
+                    LIGHT=(1.0-BETA(JW))*SRON(JW)*SHADE(I)    
+                    endif
+                    
                     LAM3=LIGHT
                     KK=KT
                     DO WHILE(LAM3 > 0.01*LIGHT) 
@@ -885,7 +917,12 @@ ENTRY KINETIC_RATES
   mGR(:,:,iu:id,m)=0.0; mRR(:,iu:id,m)=0.0; mmR(:,iu:id,m)=0.0  ! cb 3/8/16
   if(macrophyte_calc(jw,m))then
     DO I=IU,ID
-      LTCOEFm = (1.0-BETA(jw))*SRON(jw)*SHADE(I)
+        if(Met_Regions)then
+          LTCOEFm = (1.0-BETA(jw))*SRON(WB_MetRegions(JW))*SHADE(I)
+        else
+          LTCOEFm = (1.0-BETA(jw))*SRON(jw)*SHADE(I)     
+        endif
+        
       if(kticol(i))then
         jt=kti(i)
       else
@@ -967,7 +1004,12 @@ ENTRY GENERIC_CONST (JG)
     
   XX=0.0
     DO I=IU,ID
-    LIGHT =  (1.0-BETA(JW))*SRON(JW)*SHADE(I)                  !LCJ 2/26/15
+    if(Met_Regions)then
+    LIGHT =  (1.0-BETA(JW))*SRON(WB_MetRegions(JW))*SHADE(I)                  !LCJ 2/26/15
+    else
+    LIGHT =  (1.0-BETA(JW))*SRON(JW)*SHADE(I)      
+    endif
+    
     LAM1  =  LIGHT
     LAM2  =  LIGHT
 
@@ -1027,7 +1069,7 @@ ENTRY SUSPENDED_SOLIDS (J)
       FETCH = FETCHD(I,JB)
       IF (COS(PHI(JW)-PHI0(I)) < 0.0) FETCH = FETCHU(I,JB)
       FETCH = MAX(FETCH,BI(KT,I),DLX(I))
-      U2    = WIND(JW)*WSC(I)*WIND(JW)*WSC(I)+NONZERO
+       U2   = WIND2(I)*WSC(I)*WIND2(I)*WSC(I)+NONZERO               !WIND(JW)*WSC(I)*WIND(JW)*WSC(I)+NONZERO   SW 12/13/2023
       COEF1 = 0.53  *(G*DEPTHB(KT,I)/U2)**0.75
       COEF2 = 0.0125*(G*FETCH/U2)**0.42
       COEF3 = 0.833* (G*DEPTHB(KT,I)/U2)**0.375
@@ -1124,7 +1166,12 @@ RETURN
 !***********************************************************************************************************************************
 ENTRY BACTERIA
   DO I=IU,ID
-    LIGHT = (1.0-BETA(JW))*SRON(JW)*SHADE(I)                
+    if(Met_regions)then
+    LIGHT = (1.0-BETA(JW))*SRON(WB_MetRegions(JW))*SHADE(I) 
+    else
+    LIGHT = (1.0-BETA(JW))*SRON(JW)*SHADE(I)     
+    endif
+    
     LAM1  = LIGHT
     LAM2  = LIGHT
     DO K=KT,KB(I)
@@ -1264,19 +1311,19 @@ ENTRY FERROUS
       
       IF(FEII(K,I) > 1.0E-7)THEN   ! skip calculations if FE2 is negligible anyway
       IF(.NOT. PH_CALC(JW))THEN
-          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*FEII(K,I)    ! assuming pH(K,I) = 7.0
+          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*FEII(K,I)*FEMN_TEMP(K,I)    ! assuming pH(K,I) = 7.0
       ELSEIF(PH(K,I) <= 4.0)THEN
-          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*(1.0E-6)*FEII(K,I) 
+          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*(1.0E-6)*FEII(K,I)*FEMN_TEMP(K,I) 
       ELSEIF(PH(K,I) >= 8.0)THEN
-          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*(1.0E+2)*FEII(K,I) 
+          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*(1.0E+2)*FEII(K,I)*FEMN_TEMP(K,I) 
       ELSE   
-          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*10**(2.0*(pH(K,I)-7.0))*FEII(K,I) 
+          FE2D(K,I)    = -KFE_OXID(JW)*O2(K,I)*10**(2.0*(pH(K,I)-7.0))*FEII(K,I)*FEMN_TEMP(K,I) 
       ENDIF
       ENDIF
       
       FEIISR(K,I)  = FEIIR(JW)*SODD(K,I)*DO2(K,I)
 
-      FEIISS(K,I)  = FEIISR(K,I) + FE2D(K,I) + KFE_RED(JW)*(KFEOOH_HalfSat(JW)/(O2(K,I)+KFEOOH_HalfSat(JW)))*FEOOH(K,I)
+      FEIISS(K,I)  = FEIISR(K,I) + FE2D(K,I) + KFE_RED(JW)*FEMN_TEMP(K,I)*(KFEOOH_HalfSat(JW)/(O2(K,I)+KFEOOH_HalfSat(JW)))*FEOOH(K,I)
     END DO 
   END DO
 RETURN
@@ -1291,9 +1338,9 @@ ENTRY OXIDIZEDFE
       IF(K == KT)THEN
         SDINFEOOH(K,I) = FeSetVel(JW)*(-FEOOH(K,I))*BI(K,I)/BH2(K,I)      !(FEOOH(K-1,I)-FEOOH(K,I))*BI(K,I)/BH2(K,I) 
       ELSE
-        SDINFEOOH(K,I) = FeSetVel(JW)*(FEOOH(K-1,I)-FEOOH(K,I))*BI(K,I)/BH2(K,I) 
+        SDINFEOOH(K,I) = FeSetVel(JW)*(FEOOH(K-1,I)-FEOOH(K,I))*BI(K,I)/BH2(K,I)              ! g/m3/s
       END IF
-      FEOOHSS(K,I) = -FE2D(K,I) - KFE_RED(JW)*(KFEOOH_HalfSat(JW)/(O2(K,I)+KFEOOH_HalfSat(JW)))*FEOOH(K,I) + SDINFEOOH(K,I)
+      FEOOHSS(K,I) = -FE2D(K,I) - KFE_RED(JW)*FEMN_TEMP(K,I)*(KFEOOH_HalfSat(JW)/(O2(K,I)+KFEOOH_HalfSat(JW)))*FEOOH(K,I) + SDINFEOOH(K,I)
     END DO 
   END DO
 RETURN
@@ -1307,17 +1354,17 @@ ENTRY BIVALENTMN
     DO K=KT,KB(I)
       IF(MNII(K,I) > 1.0E-7) THEN   ! SKIP CALCS IF MNII IS NEGLIGIBLE ANYWAY
       IF(.NOT. PH_CALC(JW))THEN
-          MN2D(K,I)   = -KMN_OXID(JW)*O2(K,I)*MNII(K,I)    ! assuming pH(K,I) = 7.0
+          MN2D(K,I)   = -KMN_OXID(JW)*O2(K,I)*MNII(K,I)*FEMN_TEMP(K,I)    ! assuming pH(K,I) = 7.0
       ELSEIF(PH(K,I) <= 4.0)THEN
-          MN2D(K,I)   =  -KMN_OXID(JW)*O2(K,I)*(1.0E-6)*MNII(K,I)
+          MN2D(K,I)   =  -KMN_OXID(JW)*O2(K,I)*(1.0E-6)*MNII(K,I)*FEMN_TEMP(K,I)
       ELSEIF(PH(K,I) >= 8.0)THEN
-          MN2D(K,I)   =   -KMN_OXID(JW)*O2(K,I)*(1.0E+2)*MNII(K,I)
+          MN2D(K,I)   =   -KMN_OXID(JW)*O2(K,I)*(1.0E+2)*MNII(K,I)*FEMN_TEMP(K,I)
       ELSE   
-          MN2D(K,I)   = -KMN_OXID(JW)*O2(K,I)*10**(2.0*(pH(K,I)-7.0))*MNII(K,I)
+          MN2D(K,I)   = -KMN_OXID(JW)*O2(K,I)*10**(2.0*(pH(K,I)-7.0))*MNII(K,I)*FEMN_TEMP(K,I)
       ENDIF
       ENDIF
       MNIISR(K,I) = MNIIR(JW)*SODD(K,I)*DO2(K,I)
-      MNIISS(K,I) = MNIISR(K,I) + MN2D(K,I) + KMN_RED(JW)*(KMNO2_HalfSat(JW)/(O2(K,I)+KMNO2_HalfSat(JW)))*MNO2(K,I)
+      MNIISS(K,I) = MNIISR(K,I) + MN2D(K,I) + KMN_RED(JW)*FEMN_TEMP(K,I)*(KMNO2_HalfSat(JW)/(O2(K,I)+KMNO2_HalfSat(JW)))*MNO2(K,I)
     END DO
   END DO
 RETURN
@@ -1330,11 +1377,11 @@ ENTRY OXIDIZEDMN
   DO I=IU,ID
     DO K=KT,KB(I)
       IF(K == KT)THEN
-        SDINMNO2(K,I) = MnSetVel(JW)*(-MNO2(K,I))*BI(K,I)/BH2(K,I) 
+        SDINMNO2(K,I) = MnSetVel(JW)*(-MNO2(K,I))*BI(K,I)/BH2(K,I)                 ! g/m3/s
       ELSE
         SDINMNO2(K,I) = MnSetVel(JW)*(MNO2(K-1,I)-MNO2(K,I))*BI(K,I)/BH2(K,I) 
       END IF
-      MNO2SS(K,I) = -MN2D(K,I) - KMN_RED(JW)*(KMNO2_HalfSat(JW)/(O2(K,I)+KMNO2_HalfSat(JW)))*MNO2(K,I) + SDINMNO2(K,I)     
+      MNO2SS(K,I) = -MN2D(K,I) - KMN_RED(JW)*FEMN_TEMP(K,I)*(KMNO2_HalfSat(JW)/(O2(K,I)+KMNO2_HalfSat(JW)))*MNO2(K,I) + SDINMNO2(K,I)     
     END DO
   END DO
 RETURN
@@ -1562,7 +1609,7 @@ RETURN
 !***********************************************************************************************************************************
 
 ENTRY PARTICULATE_SILICA
-  PSIAM(:,IU:ID) = 0.0
+  PSIAM(:,IU:ID) = 0.0; PSIEM(:,IU:ID)=0.0   ! SR 8/2023
   DO I=IU,ID
     DO K=KT,KB(I)
       DO JA=1,NAL
@@ -2240,8 +2287,12 @@ ENTRY EPIPHYTON (J)
   DO I=IU,ID
 
 !** Limiting factor
-
-    LIGHT = (1.0-BETA(JW))*SRON(JW)*SHADE(I)/ESAT(J)
+    if(Met_regions)then
+    LIGHT = (1.0-BETA(JW))*SRON(WB_MetRegions(JW))*SHADE(I)/ESAT(J)
+    else
+    LIGHT = (1.0-BETA(JW))*SRON(JW)*SHADE(I)/ESAT(J)    
+    endif
+    
     LAM2  =  LIGHT
     LAM1  =  LIGHT
     DO K=KT,KB(I)
@@ -2260,7 +2311,7 @@ ENTRY EPIPHYTON (J)
 
 !**** Sources/sinks
 
-      EGR(K,I,J) =  MIN(ETRM(K,I,J)*EG(J)*LIMIT*BLIM,PO4(K,I)/(EP(J)*DLT*EPD(K,I,J)/H1(KT,I)+NONZERO),(NH4(K,I)+NO3(K,I))/(EN(J)   &
+      EGR(K,I,J) =  MIN(ETRM(K,I,J)*EG(J)*LIMIT*BLIM,PO4(K,I)/(EP(J)*DLT*EPD(K,I,J)/H1(K,I)+NONZERO),(NH4(K,I)+NO3(K,I))/(EN(J)   &
                     *DLT*EPD(K,I,J)/H1(K,I)+NONZERO))
       ERR(K,I,J) =  ETRM(K,I,J)*ER(J)*DO3(K,I)
       EMR(K,I,J) = (ETRMR(K,I,J)+1.0-ETRMF(K,I,J))*EM(J)
@@ -2590,7 +2641,8 @@ ENTRY LABILE_POM_C
 	      DO JZ = 1,NZP
           IF(TGRAZE(K,I,JZ) > 0.0)THEN
             LPZOOOUTC(K,I) = LPZOOOUTC(K,I) + ZOO(K,I,JZ)*(ZMT(K,I,JZ)+(ZMU(K,I,JZ)-(ZMU(K,I,JZ)*ZEFF(JZ))))*ZC(JZ)
-            IF(CAC(NLPOM) == '      ON')THEN
+            IF(.NOT.ORGC_CALC)THEN     ! SW 7/8/2024
+            !IF(CAC(NLPOM) == '      ON')THEN
               LPZOOINC(K,I) = LPZOOINC(K,I) + ZOO(K,I,JZ)*PREFP(JZ)*ZMU(K,I,JZ)*LPOM(K,I)/TGRAZE(K,I,JZ)*ZC(JZ)
             ELSE
               LPZOOINC(K,I) = LPZOOINC(K,I) + ZOO(K,I,JZ)*PREFP(JZ)*ZMU(K,I,JZ)*LPOMC(K,I)/ORGC(JW)/TGRAZE(K,I,JZ)*ZC(JZ)
@@ -3066,7 +3118,7 @@ ENTRY DERIVED_CONSTITUENTS
               TOTSS(K,I) = TOTSS(K,I)+ALG(K,I,JA)
               ENDIF
             END DO
-            TOTSS(K,I) = TOTSS(K,I)+TISS(K,I)+POM(K,I)
+            TOTSS(K,I) = TOTSS(K,I)+TISS(K,I)+POM(K,I)+FEOOH(K,I)+MNO2(K,I)    ! SW 1/29/2025 Added oxidized Fe and Mn to TSS calculation
           ENDIF
           IF(CDWBC(TURB_DER,JW)=='      ON')TURB(K,I)    = EXP(CoeffA_Turb(JW)*LOG(TOTSS(K,I)) + CoeffB_Turb(JW))
           IF(CDWBC(SECCHI_DER,JW)=='      ON')SECCHID(K,I) = SECC_PAR(JW)/GAMMA(K,I)        ! Secchi Disk
@@ -3108,10 +3160,13 @@ RETURN
 
 ENTRY DEALLOCATE_KINETICS
   DEALLOCATE (OMTRM,  SODTRM, NH4TRM, NO3TRM, DOM, POM, PO4BOD, NH4BOD, TICBOD, ATRM,   ATRMR,  ATRMF, ETRM,   ETRMR,  ETRMF, BIBH2)
-  DEALLOCATE (LAM2M, ALGAE_SETTLING,FE)       
+  DEALLOCATE (LAM2M, ALGAE_SETTLING,FE,FEMN_TEMP)       
   IF(MIGRATION == 'ON')DEALLOCATE (ASETTLE, DEN_AVG, DENP, DEN1, DEN2, ALLIM_OLD, DEN, AMP, PHASE, C_COEFF_EXT, RAD, MIND, MAXD, DENSI, DENBI, T_DEC, C_DENINC, C_DENDEC, DEPTH_LIM, LOSS_FRAC, TWQ, &
       I_C, C_DENINC_1, C_DENINC_2, C_DENDEC_1, C_DENDEC_2, DENP_MINS, DENP_MINB, DENP_MIN, DEN_COR, MIGRATE_GROUP, MIGRATE_MODEL, TS_DEC, DEPTH_LIM_ONOFF,&
       NMINT, MIGON, MIGOFF, LOLD, DEPTH_CALC_ONOFF, EXP_DEPTH)    ! CO 6/12/2019
+    IF(ALGAE_TOXIN)THEN
+      DEALLOCATE(CTP,CTB,IN_TOXIN)
+    ENDIF
   RETURN
 END SUBROUTINE KINETICS
 

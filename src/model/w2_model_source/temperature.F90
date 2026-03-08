@@ -4,7 +4,7 @@ USE MAIN
 USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINETIC; USE SHADEC; USE EDDY
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
   USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC
-  Use CEMAVars
+  Use CEMAVars; USE MetFileRegion
   IMPLICIT NONE
   EXTERNAL RESTART_OUTPUT
   
@@ -14,18 +14,18 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
 DO JW=1,NWB
       IF (READ_EXTINCTION(JW))GAMMA(:,US(BS(JW)):DS(BE(JW))) = EXH2O(JW)      ! SW 1/28/13
       KT = KTWB(JW)
+      if(.not.Met_Regions)then
       IF (.NOT. NO_HEAT(JW)) THEN
         IF (.NOT. READ_RADIATION(JW)) CALL SHORT_WAVE_RADIATION (JDAY)
         IF (TERM_BY_TERM(JW))THEN                                      ! SW 1/25/05
            IF(TAIR(JW).GE.5.0)THEN
-           !RANLW(JW) = 5.31D-13*(273.15D0+TAIR(JW))**6*(1.0D0+0.0017D0*CLOUD(JW)**2)*0.97D0
            RANLW(JW) = 5.31D-13*(273.15D0+TAIR(JW))**6*(1.0D0+0.0017D0*CLOUD(JW)*CLOUD(JW))*0.97D0    ! SW 4/20/16 SPEED
            ELSE
-           !RANLW(JW) = 5.62D-8*(273.15D0+TAIR(JW))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(JW)**2))*(1.0D0+0.0017D0*CLOUD(JW)**2)*0.97D0
            RANLW(JW) = 5.62D-8*(273.15D0+TAIR(JW))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(JW)*TAIR(JW)))*(1.0D0+0.0017D0*CLOUD(JW)*CLOUD(JW))*0.97D0     ! SW 4/20/16 SPEED
            ENDIF
         ENDIF
       END IF
+      endif
       DO JB=BS(JW),BE(JW)
       IF(BR_INACTIVE(JB))CYCLE
         IU = CUS(JB)
@@ -35,6 +35,22 @@ DO JW=1,NWB
 
         IF (.NOT. NO_HEAT(JW)) THEN
           DO I=IU,ID
+              if(Met_Regions)then
+                        NMet=I_MetRegions(I)
+                        IF (.NOT. NO_HEAT(JW)) THEN
+                        IF (.NOT. READ_RADIATION(JW)) CALL SHORT_WAVE_RADIATION (JDAY)
+                        IF (TERM_BY_TERM(JW))THEN                                      ! SW 1/25/05
+                           IF(TAIR(NMet).GE.5.0)THEN
+                           RANLW(NMet) = 5.31D-13*(273.15D0+TAIR(NMet))**6*(1.0D0+0.0017D0*CLOUD(NMet)*CLOUD(NMet))*0.97D0    ! SW 4/20/16 SPEED
+                           ELSE
+                           RANLW(NMet) = 5.62D-8*(273.15D0+TAIR(I_MetRegions(JW)))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(NMet)*TAIR(NMet)))*(1.0D0+0.0017D0*CLOUD(NMet)*CLOUD(NMet))*0.97D0     ! SW 4/20/16 SPEED
+                           ENDIF
+                        ENDIF
+                      END IF
+
+  
+              endif
+              
             IF (DYNAMIC_SHADE(I)) CALL SHADING
 
 !********** Surface
@@ -42,16 +58,27 @@ DO JW=1,NWB
             IF (.NOT. ICE(I)) THEN
               IF (TERM_BY_TERM(JW)) THEN
                 CALL SURFACE_TERMS (T2(KT,I))
-                RS(I)     = SRON(JW)*SHADE(I)
-                RN(I)     = RS(I)+RANLW(JW)-RB(I)-RE(I)-RC(I)
+                 if(Met_Regions)then
+                    RS(I)     = SRON(NMet)*SHADE(I)
+                    RN(I)     = RS(I)+RANLW(NMet)-RB(I)-RE(I)-RC(I)
+                     else
+                    RS(I)     = SRON(JW)*SHADE(I)
+                    RN(I)     = RS(I)+RANLW(JW)-RB(I)-RE(I)-RC(I)
+                endif
                 HEATEX    = RN(I)/RHOWCP*BI(KT,I)*DLX(I)
+
               ELSE
                 CALL EQUILIBRIUM_TEMPERATURE
                 HEATEX = (ET(I)-T2(KT,I))*CSHE(I)*BI(KT,I)*DLX(I)
               END IF
               TSS(KT,I) =  TSS(KT,I)+HEATEX
               TSSS(JB)  =  TSSS(JB) +HEATEX*DLT
-              SROOUT    = (1.0D0-BETA(JW))*(SRON(JW)*SHADE(I)/RHOWCP)*BI(KT,I)*DLX(I)*DEXP(-GAMMA(KT,I)*DEPTHB(KT,I))
+              if(Met_Regions)then
+              SROOUT    = (1.0D0-BETA(JW))*(SRON(NMet)*SHADE(I)/RHOWCP)*BI(KT,I)*DLX(I)*DEXP(-GAMMA(KT,I)*DEPTHB(KT,I))
+              else
+              SROOUT    = (1.0D0-BETA(JW))*(SRON(JW)*SHADE(I)/RHOWCP)*BI(KT,I)*DLX(I)*DEXP(-GAMMA(KT,I)*DEPTHB(KT,I))    
+              endif
+              
               TSS(KT,I) =  TSS(KT,I)-SROOUT
               TSSS(JB)  =  TSSS(JB) -SROOUT*DLT
               IF(KT == KB(I))THEN    ! SW 4/18/07
@@ -131,15 +158,30 @@ DO JW=1,NWB
 !************** Ice balance
 
                 IF (ICE(I)) THEN
+                  if(Met_Regions)then
+                  NMet=I_MetRegions(I)
+                  TICE = TAIR(NMet)
+                  else
                   TICE = TAIR(JW)
+                  endif
                   DEL  = 2.0D0
                   J    = 1
+                  if(Met_Regions)then
+                    IF(TAIR(NMet).GE.5.0)THEN
+                    RANLW(NMet) = 5.31D-13*(273.15D0+TAIR(NMet))**6*(1.0D0+0.0017D0*CLOUD(NMet)**2)*0.97D0
+                    ELSE
+                    RANLW(NMet) = 5.62D-8*(273.15D0+TAIR(NMet))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(NMet)**2))*(1.0D0+0.0017D0*CLOUD(NMet)**2)*0.97D0
+                    ENDIF
+                    RN1=SRON(NMet)/REFL*SHADE(I)*(1.0D0-ALBEDO(JW))*BETAI(JW)+RANLW(NMet)               ! SW 4/19/10 eliminate spurious divsion of SRO by RHOCP
+                  else
                     IF(TAIR(JW).GE.5.0)THEN
                     RANLW(JW) = 5.31D-13*(273.15D0+TAIR(JW))**6*(1.0D0+0.0017D0*CLOUD(JW)**2)*0.97D0
                     ELSE
                     RANLW(JW) = 5.62D-8*(273.15D0+TAIR(JW))**4*(1.D0-0.261D0*DEXP(-7.77D-4*TAIR(JW)**2))*(1.0D0+0.0017D0*CLOUD(JW)**2)*0.97D0
                     ENDIF
-                    RN1=SRON(JW)/REFL*SHADE(I)*(1.0D0-ALBEDO(JW))*BETAI(JW)+RANLW(JW)               ! SW 4/19/10 eliminate spurious divsion of SRO by RHOCP
+                    RN1=SRON(JW)/REFL*SHADE(I)*(1.0D0-ALBEDO(JW))*BETAI(JW)+RANLW(JW)               ! SW 4/19/10 eliminate spurious divsion of SRO by RHOCP  
+                  endif
+                  
                   DO WHILE (ABS(DEL) > 1.0 .AND. J < 500)                                         ! SW 4/21/10 Should have been ABS of DEL
                     CALL SURFACE_TERMS (TICE)      
                     RN(I) = RN1-RB(I)-RE(I)-RC(I)    ! 4/19/10 
@@ -150,9 +192,14 @@ DO JW=1,NWB
                   END DO
 
 !**************** Solar radiation attenuation
-
-                  TFLUX      = DLX(I)*SRON(JW)/(RHOWCP*REFL)*SHADE(I)*(1.0D0-ALBEDO(JW))*(1.0D0-BETAI(JW))                             &   ! SW 4/21/10 Eliminate spurious divide by RHOCP
+                  if(Met_Regions)then
+                  TFLUX      = DLX(I)*SRON(WB_MetRegions(JW))/(RHOWCP*REFL)*SHADE(I)*(1.0D0-ALBEDO(JW))*(1.0D0-BETAI(JW))                             &   ! SW 4/21/10 Eliminate spurious divide by RHOCP
                                *DEXP(-GAMMAI(JW)*ICETH(I))*BI(KT,I)
+                  else
+                  TFLUX      = DLX(I)*SRON(JW)/(RHOWCP*REFL)*SHADE(I)*(1.0D0-ALBEDO(JW))*(1.0D0-BETAI(JW))                             &   ! SW 4/21/10 Eliminate spurious divide by RHOCP
+                               *DEXP(-GAMMAI(JW)*ICETH(I))*BI(KT,I)                      
+                  endif
+                  
                   TSS(KT,I)  = TSS(KT,I) +TFLUX
                   TSSICE(JB) = TSSICE(JB)+TFLUX*DLT
                   IF (TICE > 0.0) THEN
@@ -218,7 +265,7 @@ DO JW=1,NWB
      !           END IF
                 ICE(I)   = ICETH(I) > 0.0
                 IF (ICE(I))THEN    ! 3/27/08 SW
-                 ICESW(I) = 0.0
+                 ICESW(I) = 0.0   ! wind shear if ice is zero
                  ELSE
                  ICESW(I) = 1.0
                 ENDIF
@@ -226,7 +273,7 @@ DO JW=1,NWB
                 ICETH1   = 0.0
                 ICETH2   = 0.0
                 IF (ICETH(I) < ICE_TOL .AND. ICETH(I) > 0.0) ICETH(I) = ICE_TOL
-              ELSE                                                         ! IF no ice the preceding time step
+              ELSE                             ! for non-detailed model                ! IF no ice the preceding time step
                 IF(TERM_BY_TERM(JW))CALL EQUILIBRIUM_TEMPERATURE           ! SW 10/20/09 Must call this first otherwise ET and CSHE are 0
                 HIA      = 0.2367D0*CSHE(I)/5.65D-8                          ! JM 11/08 convert SI units of m/s to English (btu/ft2/d/F) and then back to SI W/m2/C
 !                ICETH(I) = MAX(0.0,ICETH(I)+DLT*((RIMT-ET(I))/(ICETH(I)/RK1+1.0/HIA)-(T2(KT,I)-RIMT))/RHOIRL1)

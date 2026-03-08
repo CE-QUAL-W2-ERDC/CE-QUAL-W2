@@ -5,20 +5,21 @@ SUBROUTINE OUTPUTA
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART  
   USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC;   USE BIOENERGETICS
   use CEMAVars
-  USE CEMAOutputRoutines; USE ALGAE_TOXINS
+  USE CEMAOutputRoutines; USE ALGAE_TOXINS; USE MetFileRegion
   IMPLICIT NONE
   
   EXTERNAL RESTART_OUTPUT  
     
   INTEGER :: JAD,JAF,IFLAG,JWWD,NLINES,ITOT,JJ, NUMOUTLETS,JSSS(100),JJC, IC, KK
-  REAL    :: TVOLAVG,QSUMM,CGASD,XDUM,QOUTLET(100),TOUTLET(100),VOLTOT, TBLANK  ! SW 2/28/2020  
+  REAL    :: TVOLAVG,QSUMM,CGASD,XDUM,QOUTLET(100),TOUTLET(100),VOLTOT, TBLANK,SRON1,RANLW1  ! SW 2/28/2020  
   REAL(R8):: DLVBR,DLE,CGAS,TGATE,TSPILL  
+  CHARACTER(4)  :: FMT                                                                                                !SR 11/30/2022
     
   ! *** DSI W2_TOOL LINKAGE  
   REAL*4,SAVE,ALLOCATABLE,DIMENSION(:)::WSEL  
   REAL*4,SAVE,ALLOCATABLE,DIMENSION(:,:)::WDSI  
     
-IF (VECTOR(1)) THEN  
+IF (VECTOR(1).or. WLC=='      ON') THEN          ! SR 12/2024
   IF(.NOT.ALLOCATED(WSEL))THEN  
     ALLOCATE(WSEL(IMX))
     ALLOCATE(WDSI(KMX,IMX))  
@@ -129,7 +130,16 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
       IF(JDAY.GE.NXWL)THEN
         NXWL = NXWL+WLF  
         ! write out water level File  
-      WRITE(WLFN,'(f10.3,",",*(f8.3,","))')jday,((elws(i),i=us(jb),ds(jb)),jb=1,nbr)      
+      DO JB=1,NBR            ! SR 12/2024
+        DO I=US(JB),DS(JB)
+          IF (I.LT.CUS(JB) .OR. BR_INACTIVE(JB)) THEN
+            WSEL(I) = -999
+          ELSE
+            WSEL(I) = ELWS(I)
+          END IF
+        END DO
+      END DO     
+      WRITE(WLFN,'(f10.3,",",*(f8.3,","))')jday,((wsel(i),i=us(jb),ds(jb)),jb=1,nbr)      
       ENDIF
   ENDIF
   
@@ -188,13 +198,19 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
           WRITE (CDCH(JAD),FMTCD(CDN(JAD,JW))(1:L)) CD(K,I,CDN(JAD,JW))*CDMULT(CDN(JAD,JW))  
         END DO  
         DO JE=1,NEP  
-          WRITE (EPCH(JE),'(F10.3)') EPD(K,I,JE)                                                    ! SW 8/13/06  
+          WRITE (EDCH(JE),'(F10.3)') EPD(K,I,JE)                                                    ! SW 8/13/06  
         END DO  
         DO JA=1,NAL
           WRITE (APCH(JA),'(F10.3)') APLIM(K,I,JA)                                                    ! SW 8/13/06  
           WRITE (ANCH(JA),'(F10.3)') ANLIM(K,I,JA)                                                    ! SW 8/13/06  
           WRITE (ALCH(JA),'(F10.3)') ALLIM(K,I,JA)                                                    ! SW 8/13/06  
         END DO  
+        DO JE=1,NEP
+          WRITE (EPCH(JE),'(F10.3)') EPLIM(K,I,JE)                                                    ! SW 11/5/2023  
+          WRITE (ENCH(JE),'(F10.3)') ENLIM(K,I,JE)                                                     
+          WRITE (ELCH(JE),'(F10.3)') ELLIM(K,I,JE)                                                    
+        END DO  
+
         DO JM=1,NMC  
           WRITE (macCH(Jm),'(F10.3)') mac(K,I,Jm)                                                   ! SW 8/13/06  
         END DO  
@@ -204,53 +220,97 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
           write (sednch,'(F10.3)') sedn(K,I)  
           write (sedcch,'(F10.3)') sedc(K,I)  
         END IF  
+        IF(MET_REGIONS)THEN
+        SRON1=SRON(WB_MetRegions(JW))
+        RANLW1=RANLW(WB_MetRegions(JW))
+        ELSE
+        SRON1=SRON(JW)
+        RANLW1=RANLW(JW)            
+        ENDIF
+        
         IF (ICE_COMPUTATION) THEN  
           IF(SEDIMENT_CALC(JW))THEN  
-            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON(JW)*1.06,GAMMA(K,I),DEPTHB(KB(I),I),    &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),                      &  ! CB 7/26/07
-            (ADJUSTR(EPCH(JE)),JE=1,NEP),(ADJUSTR(MACCH(JM)),JM=1,NMC),SEDCH,SEDPCH,SEDNCH,SEDCCH, &  
+              IF(NEP>0 .AND. EPIPHYTON_CALC(JW,1))THEN
+            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),    &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),                      &  ! CB 7/26/07
+            (ADJUSTR(EDCH(JE)),JE=1,NEP),(ADJUSTR(MACCH(JM)),JM=1,NMC),SEDCH,SEDPCH,SEDNCH,SEDCCH, &  
+            (ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),(ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL), &
+            (ADJUSTR(EPCH(JE)),JE=1,NEP),(ADJUSTR(ENCH(JE)),JE=1,NEP),(ADJUSTR(ELCH(JE)),JE=1,NEP)! SW 10/20/15 
+              ELSE
+            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),    &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),                      &  ! CB 7/26/07
+            (ADJUSTR(MACCH(JM)),JM=1,NMC),SEDCH,SEDPCH,SEDNCH,SEDCCH, &  
             (ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),(ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL)    ! SW 10/20/15 
+                  
+              ENDIF
+              
           ELSE  
-            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON(JW)*1.06,GAMMA(K,I),DEPTHB(KB(I),I),      &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),                      &  ! CB 7/26/07
-            (ADJUSTR(EPCH(JE)),JE=1,NEP),(ADJUSTR(MACCH(JM)),JM=1,NMC),                            &  
+              IF(NEP>0 .AND. EPIPHYTON_CALC(JW,1))THEN
+            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),      &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),                      &  ! CB 7/26/07
+            (ADJUSTR(EDCH(JE)),JE=1,NEP),(ADJUSTR(MACCH(JM)),JM=1,NMC),                            &  
+            (ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),(ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL),   & ! SW 10/20/15  
+            (ADJUSTR(EPCH(JE)),JE=1,NEP),(ADJUSTR(ENCH(JE)),JE=1,NEP),(ADJUSTR(ELCH(JE)),JE=1,NEP)
+              ELSE
+            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),      &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),                      &  ! CB 7/26/07
+            (ADJUSTR(MACCH(JM)),JM=1,NMC),                            &  
             (ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),(ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL)    ! SW 10/20/15  
+              ENDIF
+              
           END IF  
         ELSE  
           IF(SEDIMENT_CALC(JW))THEN  
-            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON(JW)*1.06,GAMMA(K,I),DEPTHB(KB(I),I),    &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),(ADJUSTR(EPCH(JE)),            &  ! CB 7/26/07
+              IF(NEP>0 .AND. EPIPHYTON_CALC(JW,1))THEN
+            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),    &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),(ADJUSTR(EDCH(JE)),            &  ! CB 7/26/07
             JE=1,NEP),(ADJUSTR(MACCH(JM)),JM=1,NMC),SEDCH,SEDPCH,SEDNCH,SEDCCH,                   &  
+            (ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),(ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL), &    ! SW 10/20/15  
+            (ADJUSTR(EPCH(JE)),JE=1,NEP),(ADJUSTR(ENCH(JE)),JE=1,NEP),(ADJUSTR(ELCH(JE)),JE=1,NEP)
+              ELSE
+            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),    &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),           &  ! CB 7/26/07
+            (ADJUSTR(MACCH(JM)),JM=1,NMC),SEDCH,SEDPCH,SEDNCH,SEDCCH,                   &  
             (ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),(ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL)    ! SW 10/20/15  
+              ENDIF
+              
           ELSE  
-            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON(JW)*1.06,GAMMA(K,I),DEPTHB(KB(I),I),      &      ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),(ADJUSTR(EPCH(JE)),            &  ! CB 7/26/07
+              IF(NEP>0 .AND. EPIPHYTON_CALC(JW,1))THEN
+            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),      &      ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),(ADJUSTR(EDCH(JE)),            &  ! CB 7/26/07
             JE=1,NEP),(ADJUSTR(MACCH(JM)),JM=1,NMC),(ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),    &  
+            (ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL), &    ! SW 10/20/15  
+            (ADJUSTR(EPCH(JE)),JE=1,NEP),(ADJUSTR(ENCH(JE)),JE=1,NEP),(ADJUSTR(ELCH(JE)),JE=1,NEP)
+              ELSE
+            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(A,","))') JDAY,DLT,ELWS(I),T1(K,I),U(K,I),QC(I),SRON1*1.06,GAMMA(K,I),DEPTHB(KB(I),I),      &      ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(ADJUSTR(C2CH(JAC)),JAC=1,NAC),            &  ! CB 7/26/07
+            (ADJUSTR(MACCH(JM)),JM=1,NMC),(ADJUSTR(CDCH(JAD)),JAD=1,NACD(JW)),    &  
             (ADJUSTR(KFCH(JF)),JF=1,NAF(JW)),(ADJUSTR(APCH(JA)),JA=1,NAL),(ADJUSTR(ANCH(JA)),JA=1,NAL),(ADJUSTR(ALCH(JA)),JA=1,NAL)    ! SW 10/20/15  
+              ENDIF
           END IF  
         END IF 
      ELSE      ! SW 4/4/2018
         IF (ICE_COMPUTATION) THEN  
           IF(SEDIMENT_CALC(JW))THEN  
-            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON(JW)*1.06,-99.,DEPTHB(KB(I),I),    &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
+            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON1*1.06,-99.,DEPTHB(KB(I),I),    &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
             (-99.,JE=1,NEP),(-99.,JM=1,NMC), SED(K,I),SEDP(K,I),SEDN(K,I),SEDC(K,I),               &                                !SEDCH,SEDPCH,SEDNCH,SEDCCH, &  
             (-99.,JAD=1,NACD(JW)),(-99.,JF=1,NAF(JW)),(-99.,JA=1,NAL),(-99.,JA=1,NAL),(-99.,JA=1,NAL)     ! SW 10/20/15 
           ELSE  
-            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON(JW)*1.06,-99.,DEPTHB(KB(I),I),      &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
+            WRITE (TSR(J),'(f10.3,",",19(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON1*1.06,-99.,DEPTHB(KB(I),I),      &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),ICETH(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
             (-99.,JE=1,NEP),(-99.,JM=1,NMC),                            &  
             (-99.,JAD=1,NACD(JW)),(-99.,JF=1,NAF(JW)),(-99.,JA=1,NAL),(-99.,JA=1,NAL),(-99.,JA=1,NAL)     ! SW 10/20/15  
           END IF  
         ELSE  
           IF(SEDIMENT_CALC(JW))THEN  
-            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON(JW)*1.06,-99.,DEPTHB(KB(I),I),    &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
+            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON1*1.06,-99.,DEPTHB(KB(I),I),    &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
             (-99.,JE=1,NEP),(-99.,JM=1,NMC), SED(K,I),SEDP(K,I),SEDN(K,I),SEDC(K,I),               &                                  !SEDCH,SEDPCH,SEDNCH,SEDCCH, &  
             (-99.,JAD=1,NACD(JW)),(-99.,JF=1,NAF(JW)),(-99.,JA=1,NAL),(-99.,JA=1,NAL),(-99.,JA=1,NAL)    ! SW 10/20/15 
           ELSE  
-            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON(JW)*1.06,-99.,DEPTHB(KB(I),I),      &     ! SW 8/13/06  
-            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),ranlw(jw),rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
+            WRITE (TSR(J),'(f10.3,",",18(F10.3,","),*(F10.1,","))') JDAY,DLT,ELWS(I),-99.,-99.,QC(I),SRON1*1.06,-99.,DEPTHB(KB(I),I),      &     ! SW 8/13/06  
+            BI(KTWB(JW),I),SHADE(I),TVOLAVG,rn(i),rs(i),RANLW1,rb(i),re(i),rc(i),REAER(I)*86400.,(-99.,JAC=1,NAC),                      &  ! CB 7/26/07
             (-99.,JE=1,NEP),(-99.,JM=1,NMC),                            &  
             (-99.,JAD=1,NACD(JW)),(-99.,JF=1,NAF(JW)),(-99.,JA=1,NAL),(-99.,JA=1,NAL),(-99.,JA=1,NAL)    ! SW 10/20/15  
           END IF  
@@ -307,17 +367,34 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
         IF (LIMITING_DLT(JW))  WRITE (SNP(JW),10510) KMIN,IMIN  
         WRITE (SNP(JW),10520)  INT(DLTAV),NIT,NV  
         WRITE (SNP(JW),10530) 'Meteorological Parameters'  
-        WRITE (SNP(JW),10540)  TAIR(JW),DEG,TDEW(JW),DEG,PHI(JW),CLOUD(JW),ET(DS(1)),DEG,CSHE(DS(1)),SRON(JW),DEG  
+        !WRITE (SNP(JW),10540)  TAIR(JW),DEG,TDEW(JW),DEG,PHI(JW),CLOUD(JW),ET(DS(1)),DEG,CSHE(DS(1)),SRON(JW),DEG  
+        if(.not.Met_Regions)then
+        WRITE (SNP(JW),10540)  TAIR(JW),DEG,TDEW(JW),DEG,PHI(JW),CLOUD(JW),ET(DS(JBDN(JW))),DEG,CSHE(DS(JBDN(JW))),SRON(JW),DEG !SR 11/30/2021
+        else
+            WRITE (SNP(JW),'(A,i3)')'Meteorological Data in Regions. Region #', WB_MetRegions(JW)
+            WRITE (SNP(JW),10540)  TAIR(WB_MetRegions(JW)),DEG,TDEW(WB_MetRegions(JW)),DEG,PHI(WB_MetRegions(JW)),CLOUD(WB_MetRegions(JW)),ET(DS(JBDN(JW))),DEG,CSHE(DS(JBDN(JW))),SRON(WB_MetRegions(JW)),DEG !SR 11/30/2021  
+        endif
+        
         WRITE (SNP(JW),10550) 'Inflows','Upstream inflows'  
         DO JB=BS(JW),BE(JW)  
+          IF(BR_INACTIVE(JB))THEN
+          IF (UP_FLOW(JB)) WRITE (SNP(JW),10561) JB,KTQIN(JB),KBQIN(JB),QIN(JB),TIN(JB),DEG 
+          ELSE
           IF (UP_FLOW(JB)) WRITE (SNP(JW),10560) JB,KTQIN(JB),KBQIN(JB),QIN(JB),TIN(JB),DEG  
-        END DO  
-        DO JB=BS(JW),BE(JW)  
-          IF (DIST_TRIBS(JB)) THEN  
-            WRITE (SNP(JW),10570)  
-            WRITE (SNP(JW),10580) JB,QDTR(JB),TDTR(JB),DEG  
-          END IF  
-        END DO  
+          ENDIF
+      END DO  
+      IF (ANY(DIST_TRIBS(BS(JW):BE(JW)))) THEN                                                                      !SR 11/30/2021
+             WRITE (SNP(JW),10570)                                           ! statement moved outside of loop      !SR 11/30/2021
+             DO JB=BS(JW),BE(JW) 
+                     IF (DIST_TRIBS(JB)) THEN 
+                         IF(BR_INACTIVE(JB))THEN
+                          WRITE (SNP(JW),10581) JB,QDTR(JB),TDTR(JB),DEG
+                          ELSE
+                          WRITE (SNP(JW),10580) JB,QDTR(JB),TDTR(JB),DEG 
+                          ENDIF
+                     ENDIF
+             ENDDO
+        END IF   
         IF (TRIBUTARIES) THEN  
           WRITE (SNP(JW),10590) (ITR(JT),          JT=1,JTT)  
           WRITE (SNP(JW),10600) (KTTR(JT),KBTR(JT),JT=1,JTT)  
@@ -327,7 +404,8 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
         WRITE (SNP(JW),10630)  
         DO JB=BS(JW),BE(JW)  
           IF (DN_FLOW(JB)) THEN  
-            WRITE (SNP(JW),10640)  JB,(QSTR(JS,JB),JS=1,JSS(JB))  
+            WRITE (SNP(JW),10640)  JB,(QSTR(JS,JB),JS=1,JSS(JB))
+            WRITE (SNP(JW),10641) (ESTR(JS,JB),JS=1,JSS(JB))  
             WRITE (SNP(JW),10650)  QSUM(JB),(K,K=KTWB(JW),KB(DS(JB)))  
             WRITE (SNP(JW),10660) (QOUT(K,JB), K=KTWB(JW),KB(DS(JB)))  
             WRITE (SNP(JW),*)
@@ -339,7 +417,7 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
         END DO  
         IF (WITHDRAWALS) THEN  
           DO JWD=1,JWW  
-            WRITE (SNP(JW),10670) MAX(CUS(JBWD(JWD)),IWD(JWD)),QWD(JWD)  
+            WRITE (SNP(JW),10670) MAX(CUS(JBWD(JWD)),IWD(JWD)),QWD(JWD),EWD(JWD)  
             IF (QWD(JWD) /= 0.0) THEN  
               WRITE (SNP(JW),10680) (K,         K=KTW(JWD),KBW(JWD))  
               WRITE (SNP(JW),10690) (QSW(K,JWD),K=KTW(JWD),KBW(JWD))  
@@ -535,7 +613,9 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
                                         ENDIF
                                         WRITE (CONV1(K,ISPR(J,JW)),'(F12.3)') TVOLAVG
         ENDDO          
-        WRITE (SPRV(JW),'(A,",",F10.3,",",*(A,","))') 'Temperature',JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))  
+        !WRITE (SPRV(JW),'(A,",",F10.3,",",*(A,","))') 'Temperature(C)',JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))  
+        WRITE (SPRV(JW),'(A,",",F10.3,",",*(A,","))') '"Temperature(C)                             "',JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))     ! SW 6/2025
+
         
         DO JC=1,NAC  
           IF (PRINT_CONST(CN(JC),JW)) THEN  
@@ -553,7 +633,8 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
                                         ENDIF
                 WRITE (CONV1(K,ISPR(J,JW)),'(F12.4)') TVOLAVG                                                ! SW 8/31/18  
             END DO   
-              WRITE (SPRV(JW),'(A38,",",F10.3,",",*(A,","))') CNAME3(CN(JC)),JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))   
+           !   WRITE (SPRV(JW),'(A,",",F10.3,",",*(A,","))') trim(CNAME3(CN(JC))),JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))   
+            WRITE (SPRV(JW),'(A43,",",F10.3,",",*(A,","))') CNAME(CN(JC)),JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))   ! SW 6/2025
           END IF  
         END DO  
         IF (CONSTITUENTS) THEN  
@@ -571,9 +652,10 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
                                         ELSE
                                             TVOLAVG=-99.0
                                         ENDIF
-                  WRITE (CONV1(K,ISPR(J,JW)),'(F12.4)') TVOLAVG                                     ! SW 8/31/18  
+                  WRITE (CONV1(K,ISPR(J,JW)),'(es12.4)') TVOLAVG                                     ! SW 8/31/18  
               END DO  
-                WRITE (SPRV(JW),'(A38,",",F10.3,",",*(A,","))') CDNAME3(CDN(JD,JW)),JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))  
+                !WRITE (SPRV(JW),'(A,",",F10.3,",",*(A,","))') trim(CDNAME3(CDN(JD,JW))),JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))  
+                WRITE (SPRV(JW),'(A43,",",F10.3,",",*(A,","))') CDNAME(CDN(JD,JW)),JDAY,(CONV1(K,ISPR(J,JW)),J=1,NISPR(JW))  ! SW 6/2025
             END IF  
             END DO  
             END IF    
@@ -586,19 +668,46 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
 
         END DO  
         DO K=KTWB(JW),KBMAX(JW)  
-          WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') 'Temperature',JDAY,DEPTHM(K,DS(BS(JW))),                      &  
+          !WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') 'Temperature(C)',JDAY,DEPTHM(K,DS(BS(JW))),                      &  
+          WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') '"Temperature(C)                             "',JDAY,DEPTHM(K,DS(BS(JW))),     &    ! SW 6/2025
+          (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
+        END DO 
+        DO J=1,NISPR(JW)  
+          DO K=KTWB(JW),KB(ISPR(J,JW))     ! SW 8/2/2023
+            WRITE (CONV1(K,J),'(F12.4)') U(K,ISPR(J,JW))  
+          END DO 
+        ENDDO
+        
+
+        DO K=KTWB(JW),KBMAX(JW)  
+         ! WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') 'HorizontalVelocity(ms-1)',JDAY,DEPTHM(K,DS(BS(JW))),                      &  
+        WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') '"HorizontalVelocity(m/s)                    "',JDAY,DEPTHM(K,DS(BS(JW))),      &    ! SW 6/2025
           (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
         END DO  
+        DO J=1,NISPR(JW)  
+          DO K=KTWB(JW),KB(ISPR(J,JW))  
+            WRITE (CONV1(K,J),'(F12.4)') U(K,ISPR(J,JW))*BHR(K,ISPR(J,JW))  
+          END DO  
+        ENDDO
+        
+
+        DO K=KTWB(JW),KBMAX(JW)  
+          !WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') 'HorizontalLayerFlow(m3s-1)',JDAY,DEPTHM(K,DS(BS(JW))),                      & 
+           WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') '"HorizontalLayerFlow(m3/s)                  "',JDAY,DEPTHM(K,DS(BS(JW))),     &    ! SW 6/2025           
+          (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
+        END DO  
+
         DO JC=1,NAC  
           IF (PRINT_CONST(CN(JC),JW)) THEN  
             DO J=1,NISPR(JW)  
               DO K=KTWB(JW),KB(ISPR(J,JW))  
-                WRITE (CONV1(K,J),'(F12.4)') C2(K,ISPR(J,JW),CN(JC))*CMULT(CN(JC))                                                ! SW 8/13/06  
+                WRITE (CONV1(K,J),'(es12.4)') C2(K,ISPR(J,JW),CN(JC))*CMULT(CN(JC))                                                ! SW 8/13/06  
               END DO  
             END DO  
             DO K=KTWB(JW),KBMAX(JW)  
-              WRITE (SPR(JW),'(A38,",",2(F10.3,","),*(F10.3,",",A,","))') CNAME3(CN(JC)),JDAY,DEPTHM(K,DS(BS(JW))),                            &  
-              (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
+              !WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') trim(CNAME3(CN(JC)))//" "//TRIM(CUNIT2(CN(JC))),JDAY,DEPTHM(K,DS(BS(JW))),                            &  
+              WRITE (SPR(JW),'(A45,",",2(F10.3,","),*(F10.3,",",A,","))') '"'//CNAME(CN(JC))//'"',JDAY,DEPTHM(K,DS(BS(JW))),                            &  ! SW 6/2025
+                  (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
             END DO  
           END IF  
         END DO  
@@ -607,12 +716,13 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
             IF (PRINT_DERIVED(CDN(JD,JW),JW)) THEN  
               DO J=1,NISPR(JW)  
                 DO K=KTWB(JW),KB(ISPR(J,JW))  
-                  WRITE (CONV1(K,J),'(F12.4)') CD(K,ISPR(J,JW),CDN(JD,JW))*CDMULT(CDN(JD,JW))                                     ! SW 8/13/06  
+                  WRITE (CONV1(K,J),'(es12.4)') CD(K,ISPR(J,JW),CDN(JD,JW))*CDMULT(CDN(JD,JW))                                     ! SW 8/13/06  
                 END DO  
               END DO  
               DO K=KTWB(JW),KBMAX(JW)  
-                WRITE (SPR(JW),'(A38,",",2(F10.3,","),*(F10.3,",",A,","))') CDNAME3(CDN(JD,JW)),JDAY,DEPTHM(K,DS(BS(JW))),                     &  
-                (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
+                !WRITE (SPR(JW),'(A,",",2(F10.3,","),*(F10.3,",",A,","))') trim(CDNAME3(CDN(JD,JW)))//" "//TRIM(CUNIT3(CDN(JD,JW))),JDAY,DEPTHM(K,DS(BS(JW))),                     &  
+                WRITE (SPR(JW),'(A45,",",2(F10.3,","),*(F10.3,",",A,","))') '"'//CDNAME(CDN(JD,JW))//'"',JDAY,DEPTHM(K,DS(BS(JW))),                     &  
+                    (ELWS(ISPR(J,JW))-DEPTHM(K,ISPR(J,JW)),CONV1(K,J),J=1,NISPR(JW))  
               END DO  
             END IF  
           END DO  
@@ -796,7 +906,7 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
           DO JB=BS(JW),BE(JW)  
             DO I=CUS(JB),DS(JB)  
               DO K=KTWB(JW),KB(I)  
-                KFS(K,I,KFCN(JAF,JW)) = DAY*KFS(K,I,KFCN(JAF,JW))/(1000.*ELTMF(JW))  ! KFS IN G, 86400 S/D * G /ELAPSED TIME IN S/1000 G/KG == KG/D
+                KFS(K,I,KFCN(JAF,JW)) = MAX(DAY*KFS(K,I,KFCN(JAF,JW))/(1000.*ELTMF(JW)),-1.0E-10)  ! KFS IN G, 86400 S/D * G /ELAPSED TIME IN S/1000 G/KG == KG/D  !ZZ 11/23
                 KFJW(JW,KFCN(JAF,JW)) = KFJW(JW,KFCN(JAF,JW))+KFS(K,I,KFCN(JAF,JW))  ! SUM UP FOR ENTIRE WATERBODY  
               END DO  
             END DO  
@@ -807,19 +917,19 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
               WRITE (CONV(K,I),'(E10.3)') KFS(K,ISNP(I,JW),KFCN(JAF,JW))      ! KG/D
             END DO  
           END DO  
-          IF (NEW_PAGE) THEN  
-            WRITE (FLX(JW),'(/(A72))') (TITLE(J),J=1,11)  
-            NLINES   =  KMX-KTWB(JW)+14  
-            NEW_PAGE = .FALSE.  
-          END IF  
-          NLINES   = NLINES+KMX-KTWB(JW)+11  
-          NEW_PAGE = NLINES > 72  
-          WRITE (FLX(JW),'(/A,F10.3,X,3(A,I0),A,F0.2,A/)') 'New date ',JDAY,MONTH//' ',GDAY,', ',YEAR,'   Julian Date = ',       &  
+          !IF (NEW_PAGE) THEN                                                 
+          !  WRITE (FLX(JW),'(/(A72))') (TITLE(J),J=1,11)  
+          !  NLINES   =  KMX-KTWB(JW)+14  
+          !  NEW_PAGE = .FALSE.  
+          !END IF  
+          !NLINES   = NLINES+KMX-KTWB(JW)+11  
+          !NEW_PAGE = NLINES > 72  
+          WRITE (FLX(JW),'(/A,F10.3,X,3(A,I0),A,F0.2,A)') 'New date ',JDAY,MONTH//' ',GDAY,', ',YEAR,'   Julian Date = ',       &  
           INT(JDAY),' days ',(JDAY-INT(JDAY))*24.0,                            &  
           ' hours           '//KFNAME(KFCN(JAF,JW))  
-          WRITE (FLX(JW),'(3X,2000I10)')                  (ISNP(I,JW),I=1,NISNP(JW))  
+          WRITE (FLX(JW),'(3X,*(I10))')                  (ISNP(I,JW),I=1,NISNP(JW))  
           DO K=KTWB(JW),KBR(JW)  
-            WRITE (FLX(JW),'(1X,I2,200A)') K,(CONV(K,I),I=1,NISNP(JW))  
+            WRITE (FLX(JW),'(1X,I3,*(A))') K,(CONV(K,I),I=1,NISNP(JW))
           END DO  
         END DO  
         WRITE(FLX2(JW),'(F10.3,",",f8.3,",",*(E12.4,","))')JDAY,ELTMF(JW)/DAY,(KFJW(JW,KFCN(K,JW)),K=1,NAF(JW))  
@@ -874,7 +984,16 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
                 ENDIF
                 QOUTLET(NUMOUTLETS)=QSTR(JS,JB)  
                 TOUTLET(NUMOUTLETS)=TAVG(JS,JB)  
-              ENDDO  
+              ENDDO 
+              
+              DO I=1,JWW    ! SW 11/14/2023
+                IF (IWD(I) == IWDO(J)) THEN  
+                  NUMOUTLETS=NUMOUTLETS+1
+                  QOUTLET(NUMOUTLETS)=QWD(I)  
+                  TOUTLET(NUMOUTLETS)=TAVGW(I) 
+                ENDIF
+              ENDDO
+              
                 
               ! cb 1/16/13 removed old code
                 
@@ -887,7 +1006,7 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
                 WRITE(WDO2(JFILE,2),'(F10.3,",",F8.2)')JDAY,TAVG(JS,JB)  
                 IF (CONSTITUENTS)then
                   cwdo(cn(1:nac),j)= cwdo(cn(1:nac),j)+qstr(js,jb)*cavg(js,jb,cn(1:nac))                 ! cb 1/16/13
-                  WRITE (WDO2(JFILE,3),'(F10.3,",",*(F10.4,","))') JDAY,(CAVG(JS,JB,CN(JC)),     JC=1,NAC)  
+                  WRITE (WDO2(JFILE,3),'(F10.3,",",*(F11.5,","))') JDAY,(CAVG(JS,JB,CN(JC)),     JC=1,NAC)  
                 end if
                 IF (DERIVED_CALC)then
                   cdwdo(cdn(1:nacd(jw),jw),j) = cdwdo(cdn(1:nacd(jw),jw),j)+qstr(js,jb)*cdavg(js,jb,cdn(1:nacd(jw),jw))                 ! cb 1/16/13 
@@ -896,9 +1015,9 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
               ENDDO  
               JSSS(JB)=NSTR(JB)  
             END IF  
-          END DO  
-        END DO  
-          
+          END DO  ! JB loop
+        END DO       ! JW loop
+
         ! OUTPUT INDIVIDUAL FILES  
         ! Order: spillways NSP, pumps NPU, gates NGT, pipes NPI  
    !     JWD=0                        ! sw 5/17/13
@@ -920,7 +1039,7 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
             WRITE(WDO2(JFILE,2),'(F10.3,",",F8.2)')JDAY,TAVGW(JWD)  
             IF (CONSTITUENTS)then
               cwdo(cn(1:nac),j)= cwdo(cn(1:nac),j)+qwd(jwd)*cavgw(jwd,cn(1:nac))                 ! cb 1/16/13  
-              WRITE (WDO2(JFILE,3),'(F10.3,",",*(F10.4,","))') JDAY,(CAVGW(JWD,CN(JC)),     JC=1,NAC)  
+              WRITE (WDO2(JFILE,3),'(F10.3,",",*(F11.5,","))') JDAY,(CAVGW(JWD,CN(JC)),     JC=1,NAC)  
             end if
             IF (DERIVED_CALC)THEN  
               !DO JW=1,NWB  
@@ -1148,16 +1267,20 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
           
         IF (QWDO(J) /= 0.0) TWDO(J) = TWDO(J)/QWDO(J)  
         DO JC=1,NAC  
+          L = LEN_TRIM(FMTC(CN(JC)))    ! SW 7/2023
           IF (QWDO(J) /= 0.0) CWDO(CN(JC),J) = CWDO(CN(JC),J)/QWDO(J)  
-          WRITE (CWDOC(CN(JC)),'(F10.4)') CWDO(CN(JC),J)                        ! SW 9/23/13 Changed format from G8.3 to F8.3 to avoid format overflow
+         ! WRITE (CWDOC(CN(JC)),'(F10.4)') CWDO(CN(JC),J)                        ! SW 9/23/13 Changed format from G8.3 to F8.3 to avoid format overflow
+          WRITE (CWDOC(CN(JC)),FMTC(CN(JC))(1:L)) CWDO(CN(JC),J)
           CWDOC(CN(JC)) = ADJUSTR(CWDOC(CN(JC)))  
         END DO  
         DO JW=1,NWB  
           IF (IWDO(J) >= US(BS(JW)) .AND. IWDO(J) <= DS(BE(JW))) EXIT  
         END DO  
         DO JD=1,NACD(JW)  
+          L = LEN_TRIM(FMTCD(CDN(JD,JW)))     ! SW 7/2023
           IF (QWDO(J) /= 0.0) CDWDO(CDN(JD,JW),J) = CDWDO(CDN(JD,JW),J)/QWDO(J)  
-          WRITE (CDWDOC(CDN(JD,JW)),'(F10.4)') CDWDO(CDN(JD,JW),J)              ! SW 9/23/13 Changed format from G8.3 to F8.3 to avoid format overflow
+!          WRITE (CDWDOC(CDN(JD,JW)),'(F10.4)') CDWDO(CDN(JD,JW),J)              ! SW 9/23/13 Changed format from G8.3 to F8.3 to avoid format overflow
+          WRITE (CDWDOC(CDN(JD,JW)),FMTCD(CDN(JD,JW))(1:L)) CDWDO(CDN(JD,JW),J)              ! SW 9/23/13 Changed format from G8.3 to F8.3 to avoid format overflow
           CDWDOC(CDN(JD,JW)) = ADJUSTR(CDWDOC(CDN(JD,JW)))  
         END DO  
 2499      WRITE (WDO(J,1),'(F10.3,",",F9.3,",",8X,*(F9.3,","))',ERR=2500) JDAY, QWDO(J), (QOUTLET(I),I=1,NUMOUTLETS)     ! sw 3/2019 This code was necessary during multiple WB read/write possible error with one file copying and another writing at the same time
@@ -1179,6 +1302,35 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
           go to 2503
 2505      CONTINUE
           IF (DERIVED_CALC) WRITE (WDO(J,4),'(F10.3,",",*(A10,","))') JDAY,(CDWDOC(CDN(JD,JW)),JD=1,NACD(JW))  
+        
+    DO JW=1,NWB  
+        !DO JB=BS(JW),BE(JW)  
+        IF (US(BS(JW)) <= IWDO(J) .AND. IWDO(J) <= DS(BE(JW))) THEN                                          
+          QNEW = 0.0                              ! repurposed array to hold layer-specific outflows                  !SR 11/30/2022
+          DO K=KTWB(JW),KB(IWDO(J))                                                                                   !SR 11/30/2022
+            QNEW(K) = QNEW(K) +QDSW(K,IWDO(J))    ! account for structures and downstream spillways/pumps/pipes/gates !SR 11/30/2022
+          END DO                                                                                                      !SR 11/30/2022
+          DO JJ=1,JWD                                                                                                 !SR 11/30/2022
+            IF (IWDO(J) == IWD(JJ)) THEN                                                                              !SR 11/30/2022
+              IF(KTW(JJ) /= 0 .AND. KBW(JJ) /= 0)THEN  
+              DO K=KTW(JJ),KBW(JJ)                                                                                    !SR 11/30/2022
+                QNEW(K) = QNEW(K) +QSW(K,JJ)      ! account for withdrawals and lateral spillways/pumps/pipes/gates   !SR 11/30/2022
+              END DO                                                                                                  !SR 11/30/2022
+              ENDIF
+            END IF                                                                                                    !SR 11/30/2022
+          END DO                                                                                                      !SR 11/30/2022
+          WRITE (FMT,'(I0)') KTWB(JW)-2                                                                               !SR 11/30/2022
+          WRITE (WDO(J,5),'(F0.4,2(",",F0.3))',ADVANCE='NO',ERR=9655) JDAY, QWDO(J), ELWS(IWDO(J))                             !SR 04/07/2023
+          WRITE (WDO(J,5),'('//TRIM(FMT)//'(A))',ADVANCE='NO',ERR=9655) (",",K=2,KTWB(JW)-1)                                   !SR 04/07/2023
+          WRITE (FMT,'(I0)',err=9655) KB(IWDO(J))-KTWB(JW)+1                                                                   !SR 11/30/2022
+          WRITE (WDO(J,5),'('//TRIM(FMT)//'(",",F0.3))',ERR=9655) (QNEW(K),K=KTWB(JW),KB(IWDO(J)))                             !SR 11/30/2022
+        ENDIF     
+        go to 9656
+9655    WRITE(w2err,*)'Format Error QWD_Layers:JDAY,QWDO,ELWS,QNEW:',jday,qwdo(j),elws(iwdo(j)),qnew(ktwb(jw)) 
+9656    continue        
+        !ENDDO ! JB LOOP
+    ENDDO ! JW LOOP
+          
       END DO  
     END IF  
   END IF  
@@ -1200,7 +1352,7 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
       DO JW=1,NWB  
         DO JB=BS(JW),BE(JW)  
           DO I=US(JB)-1,DS(JB)+1  
-            IF (I.LT.CUS(JB)) THEN  
+            IF (I.LT.CUS(JB) .OR. BR_INACTIVE(JB)) THEN              !SR 11/10/2023   
               WSEL(I) = -9999  
             ELSE  
               WSEL(I) = ELWS(I)  
@@ -1230,8 +1382,13 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
       WRITE(VPL(1)) ((WDSI(K,I),K=1,KMX),I=1,IMX)  
 
       ! *** Constituent data  
-      DO JC=1,NAC  
+      DO JC=1,NAC+NACD(1)
+        IF(JC <= NAC)THEN
         IC=CN(JC)  
+        ELSE
+        IC=CDN(JC-NAC,1)    
+        ENDIF
+        
         DO I = 1,IMX
           ! *** ABOVE ACTIVE LAYER 
           DO K = 1, KTI(I)-1  
@@ -1239,7 +1396,12 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
           END DO  
           ! *** ACTIVE LAYERS
           DO K = KTI(I),KB(I)
+            IF(JC <= NAC)THEN  
             WDSI(K,I) = C2(K,I,IC)
+            ELSE
+            WDSI(K,I) = CD(K,I,IC)    
+            ENDIF
+            
           END DO  
           ! *** BELOW ACTIVE LAYER 
           DO K = KB(I)+1,KMX  
@@ -1275,7 +1437,7 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
     
   ! Snapshot formats  
     
-10490 FORMAT ('CE-QUAL-W2 VERSION',F4.2/                                                                                          &  
+10490 FORMAT ('CE-QUAL-W2 Version ',F4.2/                                                                                          &  
               (1X,A72))  
 10500 FORMAT (/1X,A/                                                                                                               &  
               3X,'Gregorian date      [GDAY] =',A19,1X,I0,', ',I0/                                                                 &  
@@ -1307,8 +1469,15 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
               5X,'  Layer       [KQIN] = ',I0,'-',I0/                                                                              &  
               5X,'  Inflow       [QIN] =',F8.2,' m^3/sec'/                                                                         &  
               5X,'  Temperature  [TIN] =',F8.2,1X,A)  
+10561 FORMAT (5X,'Branch ',I0,' Branch is Inactive'/                                                                               &  
+              5X,'  Layer       [KQIN] = ',I0,'-',I0/                                                                              &  
+              5X,'  Inflow       [QIN] =',F8.2,' m^3/sec'/                                                                         &  
+              5X,'  Temperature  [TIN] =',F8.2,1X,A)  
 10570 FORMAT (/3X,'Distributed Tributaries')  
 10580 FORMAT (5X,'Branch ',I0/                                                                                                     &  
+              5X,'  Inflow      [QDTR] =',F8.2,' m^3/sec'/                                                                         &  
+              5X,'  Temperature [TDTR] =',F8.2,1X,A)  
+10581 FORMAT (5X,'Branch ',I0,' Branch is Inactive'/                                                                               &  
               5X,'  Inflow      [QDTR] =',F8.2,' m^3/sec'/                                                                         &  
               5X,'  Temperature [TDTR] =',F8.2,1X,A)  
 10590 FORMAT (:/3X,'Tributaries'/                                                                                                  &  
@@ -1323,16 +1492,18 @@ IF(LAKE_RIVER_CONTOUR_ON=='ON')THEN    ! SW 2/28/2020
 10630 FORMAT (/1X,'Outflows')  
 10640 FORMAT (3X,'Structure outflows [QSTR]'/                                                                                      &  
               3X,'  Branch ',I0,' = ',11F8.2:/                                                                                     &  
-              (T16,11F8.2))  
+              (T16,11F8.2))                                                                                                        
+10641 FORMAT (3X,'  CenterLElev',11F8.2:/(T16,11F8.2))
 10650 FORMAT (:/3X,'Total outflow [QOUT] =',F8.2,' m^3/s'/                                                                         &  
               5X,'Outlets'/                                                                                                        &  
               5X,'  Layer             [KOUT] =',12I7:/                                                                             &  
               (33X,12I7))  
 10660 FORMAT (:7X,'Outflow (m^3/sec) [QOUT] =',12F7.2:/                                                                            &  
               (33X,12F7.2))  
-10670 FORMAT (:5X,'Withdrawals'/                                                                                                   &  
+10670         FORMAT (:5X,'Withdrawals'/                                                                                           &  
               5X,'  Segment            [IWD] =',I7/                                                                                &  
-              5X,'  Outflow (m^3/sec)  [QWD] =',F7.2)  
+              5X,'  Outflow (m^3/sec)  [QWD] =',F7.2/                                                                              &
+              5X,'  CL Elev(m)         [EWD] =',F8.2)  
 10680 FORMAT (5X,'  Layer              [KWD] =',12I7/                                                                              &  
               (33X,12I7))  
 10690 FORMAT (:5X,'  Outflow (m^3/sec)  [QSW] =',12F7.2/                                                                           &  

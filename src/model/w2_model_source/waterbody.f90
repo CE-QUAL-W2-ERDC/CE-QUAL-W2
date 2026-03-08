@@ -275,11 +275,10 @@ ENTRY DOWNSTREAM_WATERBODY
       DO WHILE (ELL(K) <= ELR(KR))
         IF (KR == KTWB(JJW)+1 .AND. K == KT+1) THEN
           B1    = BH2(KTWB(JJW),CDHS(JB))
-          BRTOT = BRTOT+B1
         ELSE
           B1    = B(KR-1,CDHS(JB))*(EL1-ELR(KR))
-          BRTOT = BRTOT+B1
         END IF
+        BRTOT = BRTOT+B1
         T1L           = T1L+B1*T1(KR-1,CDHS(JB))
         T2L           = T2L+B1*T2(KR-1,CDHS(JB))
         CL(CN(1:NAC)) = CL(CN(1:NAC))+B1*C1S(KR-1,CDHS(JB),CN(1:NAC))
@@ -287,7 +286,7 @@ ENTRY DOWNSTREAM_WATERBODY
         KR            = KR+1
         IF (KR > KB(CDHS(JB))+1) EXIT
       END DO
-      IF (KR <= KB(CDHS(JB)+1)) THEN
+      IF (KR <= KB(CDHS(JB))+1) THEN     ! SR 1/2024
         B1 = B(KR-1,CDHS(JB))*(EL1-ELL(K))
       ELSE
         B1 = 0.0
@@ -617,24 +616,19 @@ ENTRY UPSTREAM_CONSTITUENT(C,SS)
       DO WHILE (ELL(K) <= ELR(KR))
         IF (KR == KT+1 .AND. K == KTWB(JWUH(JB))+1) THEN
           B1    = BH2(KT,IU)
-          BRTOT = BRTOT+B1
         ELSE
           B1    = B(KR-1,IU)*(EL1-ELR(KR))
-          BRTOT = BRTOT+B1
         END IF
-        IUT = IU
-        IF (QU(K-1,UHS(JB)) >= 0.0) IUT = IU-1
+        BRTOT = BRTOT+B1
         T1L = T1L+B1*C(KR-1,IUT)
         EL1 = ELR(KR)
         KR  = KR+1
         IF (KR > KB(IU)+1) EXIT
       END DO
-      IUT = IU
-      IF (QU(K-1,UHS(JB)) >= 0.0) IUT = IU-1
       B1              =  B(KR-1,IU)*(EL1-ELL(K))
       BRTOT           =  BRTOT+B1
       T1L             = (T1L+B1*C(KR-1,IUT))/BRTOT
-      SS(K-1,UHS(JB)) = TSS(K-1,UHS(JB))-T1L*QU(K-1,UHS(JB))
+      SS(K-1,UHS(JB)) = SS(K-1,UHS(JB))-T1L*QU(K-1,UHS(JB))
       IF (KR > KB(IU)+1) EXIT
       EL1 = ELL(K)
     END IF
@@ -680,11 +674,10 @@ ENTRY DOWNSTREAM_CONSTITUENT (C,SS)
       DO WHILE (ELR(K) <= ELL(KL))
         IF (KL == KTWB(JW)+1 .AND. K == KTWB(JJW)+1) THEN
           B1    = BH2(KT,ID)
-          BRTOT = BRTOT+B1
         ELSE
           B1    = B(KL-1,ID)*(EL1-ELL(KL))
-          BRTOT = BRTOT+B1
         END IF
+        BRTOT = BRTOT+B1
         T1L = T1L+B1*C(KL-1,IDT)
         EL1 = ELL(KL)
         KL  = KL+1

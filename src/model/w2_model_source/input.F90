@@ -5,12 +5,12 @@ USE GLOBAL; USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINE
   USE STRUCTURES; USE TRANS;  USE TVDC;   USE SELWC;  USE GDAYC; USE SCREENC; USE TDGAS;   USE RSTART
   USE MACROPHYTEC; USE POROSITYC; USE ZOOPLANKTONC; USE INITIALVELOCITY; USE BIOENERGETICS; USE TRIDIAG_V; USE MSCLIB, ONLY: RESTART_PUSHED
   USE modSYSTDG        ! SYSTDG
-  USE ALGAE_TOXINS
+  USE ALGAE_TOXINS; USE MetFileRegion   ! SW 12/13/2023
   IMPLICIT NONE
   EXTERNAL RESTART_OUTPUT
   
   real    ::  sum ! enhanced pH buffering
-  INTEGER :: NPROC,NNDC, N, NSTT, NIDUM, NDUM, JJ,NEPTT,NZPTT,NALT,NMCTT                                                            ! SW 7/13/09   9/28/2018
+  INTEGER :: NPROC,NNDC, N, NSTT, NIDUM, NDUM, JJ,NEPTT,NZPTT,NALT,NMCTT                                                         ! SW 7/13/09   9/28/2018
   CHARACTER*1 CHAR1
   CHARACTER*8 AID
   CHARACTER(8):: CDUM
@@ -27,7 +27,7 @@ USE GLOBAL; USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINE
   READ (CON,'(//8X,5I8,2A8)') NWB, NBR, IMX, KMX, NPROC, CLOSEC                     ! SW 7/31/09
   READ (CON,'(//8X,8I8)')     NTR, NST, NIW, NWD, NGT, NSP, NPI, NPU
   READ (CON,'(//8X,7I8,a8)')  NGC, NSS, NAL, NEP, NBOD, nmc, nzp  
-  READ (CON,'(//8X,I8,7A8)')  NOD,SELECTC,HABTATC,ENVIRPC,AERATEC,inituwl,ORGCC,SED_DIAG     !, SYSTDGC, N2BNDC, DOBNDC, TDGTAC       ! systdg - Add control variables
+  READ (CON,'(//8X,I8,7A8,f8.0)')  NOD,SELECTC,HABTATC,ENVIRPC,AERATEC,inituwl,ORGCC,SED_DIAG,DZMAX     !, SYSTDGC, N2BNDC, DOBNDC, TDGTAC       ! systdg - Add control variables
   ELSE
   READ (CON,*)
   READ (CON,*)
@@ -46,10 +46,11 @@ USE GLOBAL; USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINE
   READ (CON,*) NGC, NSS, NAL, NEP, NBOD, NMC, NZP  
   READ (CON,*)
   READ (CON,*)
-  READ (CON,*) NOD,SELECTC,HABTATC,ENVIRPC,AERATEC,INITUWL,ORGCC,SED_DIAG           !'(I0,5(A))'   
+  READ (CON,*) NOD,SELECTC,HABTATC,ENVIRPC,AERATEC,INITUWL,ORGCC,SED_DIAG,DZMAX           !'(I0,5(A))'   
   SELECTC=ADJUSTR(SELECTC);HABTATC=ADJUSTR(HABTATC);ENVIRPC=ADJUSTR(ENVIRPC);AERATEC=ADJUSTR(AERATEC);INITUWL=ADJUSTR(INITUWL)
   ORGCC = ADJUSTR(ORGCC); SED_DIAG=ADJUSTR(SED_DIAG)
   ENDIF
+ IF(DZMAX==0.0)DZMAX=1000.  ! multiplier on DZ in case of instability - old value of DZMAX in W2
   
   if(NPROC == 0)NPROC=1                                                                 ! SW 7/31/09
   !call omp_set_num_threads(NPROC)   ! set # of processors to NPROC  Moved to INPUT subroutine  TOGGLE FOR DEBUG
@@ -59,7 +60,7 @@ USE GLOBAL; USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE KINE
   !
   ORGC_CALC = ORGCC  == '      ON'
   ! Fix the values here
-  O2CH4 = 5.33
+  O2CH4 = 5.33   ! g O2/g C     if in units of mg/l as CH4 it is 4.0 mg O2/mg CH4
   O2H2S = 1.88
   O2FE2 = 0.143
   O2MN2 = 0.291
@@ -164,6 +165,7 @@ END IF
   ELSE
       NSTT=5
   ENDIF
+
   IF(NEPT>5)THEN
       NEPTT=NEPT
   ELSE
@@ -186,7 +188,7 @@ END IF
      NZPTT=5
   ENDIF
   
-  
+  ALLOCATE (QDSW(KMX,IMX))                                                                                            !SR 12/19/2022
   ALLOCATE (CDAC(NDC), X1(IMX), TECPLOT(NWB))
   ALLOCATE (BTA1(KMX),GMA1(KMX))
   ALLOCATE (WSC(IMX),    KBI(IMX))
@@ -196,7 +198,7 @@ END IF
   ALLOCATE (EXC(NWB),    EXIC(NWB))
   ALLOCATE (SLTRC(NWB),  THETA(NWB),  FRICC(NWB),  NAF(NWB),    ELTMF(NWB), Z0(NWB))
   ALLOCATE (ZMIN(NWB),   IZMIN(NWB))
-  ALLOCATE (C2CH(NCT),   CDCH(NDC),   EPCH(NEPT),  macch(nmct), KFCH(NFL), APCH(NAL), ANCH(NAL), ALCH(NAL))
+  ALLOCATE (C2CH(NCT),   CDCH(NDC),   EDCH(NEPT), EPCH(NEPT),  macch(nmct), KFCH(NFL), APCH(NAL), ANCH(NAL), ALCH(NAL), ENCH(NEPT), ELCH(NEPT))
   ALLOCATE (CPLTC(NCT),  HPLTC(NHY),  CDPLTC(NDC))
   ALLOCATE (CMIN(NCT),   CMAX(NCT),   HYMIN(NHY),  HYMAX(NHY),  CDMIN(NDC),  CDMAX(NDC))
   ALLOCATE (JBDAM(NBR),  ILAT(NWDT))
@@ -217,8 +219,9 @@ END IF
   ALLOCATE (KFS(KMX,IMX,NFL),   AF(KMX,IMX,NAL,5),     EF(KMX,IMX,NEP,5),  HYD(KMX,IMX,NHY), KFJW(NWB,NFL))
   ALLOCATE (TKE(KMX,IMX,3), AZT(KMX,IMX),DZT(KMX,IMX))
   ALLOCATE (USTARBTKE(IMX),E(IMX),EROUGH(NWB), ARODI(NWB), STRICK(NWB), TKELATPRDCONST(NWB))
-  ALLOCATE (FIRSTI(NWB), LASTI(NWB), TKELATPRD(NWB), STRICKON(NWB), WALLPNT(NWB), IMPTKE(NWB), TKEBC(NWB))
+  !ALLOCATE (FIRSTI(NWB), LASTI(NWB), TKELATPRD(NWB), STRICKON(NWB), WALLPNT(NWB), IMPTKE(NWB), TKEBC(NWB))
 !  ALLOCATE (HYDRO_PLOT(NHY),    CONSTITUENT_PLOT(NCT), DERIVED_PLOT(NDC))
+  ALLOCATE (TKELATPRD(NWB), STRICKON(NWB), WALLPNT(NWB), IMPTKE(NWB), TKEBC(NWB))
   ALLOCATE (ZERO_SLOPE(NWB),    DYNAMIC_SHADE(IMX))
   ALLOCATE (AZSLC(NWB))
   ALLOCATE (NSPRF(NWB))
@@ -234,7 +237,7 @@ END IF
   ALLOCATE (A00(NWB),    HH(NWB),     DECL(NWB))
   ALLOCATE (T2I(NWB),    KTWB(NWB),   KBR(NWB),    IBPR(NWB))
   ALLOCATE (DLVR(NWB),   ESR(NWB),    ETR(NWB),    NBL(NWB))
-  ALLOCATE (LPRFN(NWB),  EXTFN(NWB),  BTHFN(NWB),  METFN(NWB),  VPRFN(NWB))
+  ALLOCATE (LPRFN(NWB),  EXTFN(NWB),  BTHFN(NWB),  VPRFN(NWB))
   ALLOCATE (SNPFN(NWB),  PRFFN(NWB),  SPRFN(NWB),  CPLFN(NWB),  VPLFN(NWB),  FLXFN(NWB),FLXFN2(NWB), SPRVFN(NWB))   ! SW 9/28/2018
   ALLOCATE (AFW(NWB),    BFW(NWB),    CFW(NWB),    WINDH(NWB),  RHEVC(NWB),  FETCHC(NWB))
   ALLOCATE (SDK(NWB),    FSOD(NWB),   FSED(NWB),   SEDCI(NWB),  SEDCC(NWB),   SEDPRC(NWB), SEDS(NWB), SEDB(NWB), DYNSEDK(NWB))  !cb 11/28/06
@@ -242,7 +245,13 @@ END IF
   ALLOCATE (ICEC(NWB),   SLICEC(NWB), ICETHI(NWB), ALBEDO(NWB), HWI(NWB),    BETAI(NWB),  GAMMAI(NWB), ICEMIN(NWB), ICET2(NWB))
   ALLOCATE (EXH2O(NWB),  BETA(NWB),   EXOM(NWB),   EXSS(NWB),   DXI(NWB),    CBHE(NWB),   TSED(NWB),   TSEDF(NWB),  FI(NWB))
   ALLOCATE (AX(NWB),     WTYPEC(NWB), JBDN(NWB),   AZC(NWB),    AZMAX(NWB), GRIDC(NWB))     !SW 07/14/04    !  QINT(NWB),   QOUTT(NWB),  
-  ALLOCATE (TAIR(NWB),   TDEW(NWB),   WIND(NWB),   PHI(NWB),    CLOUD(NWB),  CSHE(IMX),   SRON(NWB),   RANLW(NWB))
+  
+  IF(Met_regions.AND. NMetFileRegions > NWB)then        ! SW 12/13/2023
+      ALLOCATE (TAIR(NMetFileRegions),   TDEW(NMetFileRegions),   WIND(NMetFileRegions),   PHI(NMetFileRegions),    CLOUD(NMetFileRegions),  CSHE(IMX),   SRON(NMetFileRegions),   RANLW(NMetFileRegions),METFN(NMetFileRegions))
+  ELSE
+      ALLOCATE (TAIR(NWB),   TDEW(NWB),   WIND(NWB),   PHI(NWB),    CLOUD(NWB),  CSHE(IMX),   SRON(NWB),   RANLW(NWB),METFN(NWB))
+  ENDIF
+  
   ALLOCATE (SNPC(NWB),   SCRC(NWB),   PRFC(NWB),   SPRC(NWB),   CPLC(NWB),   VPLC(NWB),   FLXC(NWB))
   ALLOCATE (NXTMSN(NWB), NXTMSC(NWB), NXTMPR(NWB), NXTMSP(NWB), NXTMCP(NWB), NXTMVP(NWB), NXTMFL(NWB))
   ALLOCATE (SNPDP(NWB),  SCRDP(NWB),  PRFDP(NWB),  SPRDP(NWB),  CPLDP(NWB),  VPLDP(NWB),  FLXDP(NWB))
@@ -260,8 +269,10 @@ END IF
   ALLOCATE (CO2R(NWB),   SROC(NWB))
   ALLOCATE (O2ER(NEPT),  O2EG(NEPT))
   ALLOCATE (CAQ10(NWB),  CADK(NWB),   CAS(NWB))
+  if(NBOD>0)then
   ALLOCATE (BODP(NBOD),  BODN(NBOD),  BODC(NBOD))
   ALLOCATE (KBOD(NBOD),  TBOD(NBOD),  RBOD(NBOD))
+  endif
   ALLOCATE (LDOMDK(NWB), RDOMDK(NWB), LRDDK(NWB))
   ALLOCATE (OMT1(NWB),   OMT2(NWB),   OMK1(NWB),   OMK2(NWB))
   ALLOCATE (LPOMDK(NWB), RPOMDK(NWB), LRPDK(NWB),  POMS(NWB))
@@ -275,10 +286,10 @@ END IF
   ALLOCATE (O2NH4(NWB),  O2OM(NWB))
   ALLOCATE (O2AR(NAL),   O2AG(NAL))
   ALLOCATE (CGQ10(NGC),  CG0DK(NGC),  CG1DK(NGC),  CGS(NGC), CGLDK(NGC),CGKLF(NGC),CGCS(NGC),CGR(NGC))  !LCJ 2/26/15
-  ALLOCATE (CUNIT(NCT),  CUNIT1(NCT), CUNIT2(NCT))
+  ALLOCATE (CUNIT(NCT),  CUNIT1(NCT), CUNIT2(NCT),CUNIT3(NDC))
   ALLOCATE (CAC(NCT),    INCAC(NCT),  TRCAC(NCT),  DTCAC(NCT),  PRCAC(NCT))
-  ALLOCATE (CNAME(NCT),  CNAME1(NCT), CNAME2(NCT), CNAME3(NCT), CMULT(NCT),  CSUM(NCT))
-  ALLOCATE (CN(NCT))
+  ALLOCATE (CNAME(NCT),  CNAME1(NCT), CNAME2(NCT), CNAME3(NCT), CMULT(NCT),  CSUM(NCT), CDNAME1(NDC))
+  ALLOCATE (CN(NCT),CDNN(NDC))
   ALLOCATE (SSS(NSS),    TAUCR(NSS),  SEDRC(NSS), SSCS(NSS))   !,  SSFLOC(NSS), FLOCEQN(NSS))                                           !SR 04/21/13
   ALLOCATE (CDSUM(NDC))
   ALLOCATE (DTRC(NBR))
@@ -300,7 +311,7 @@ END IF
   ALLOCATE (TSSEV(NBR),  TSSPR(NBR),  TSSTR(NBR),  TSSDT(NBR),  TSSWD(NBR),  TSSUH(NBR),  TSSDH(NBR),  TSSIN(NBR),  TSSOUT(NBR))
   ALLOCATE (ET(IMX),     RS(IMX),     RN(IMX),     RB(IMX),     RC(IMX),     RE(IMX),     SHADE(IMX))
   ALLOCATE (DLTMAX(NOD), QWDO(IMX),   TWDO(IMX))                                                                        ! SW 1/24/05
-  ALLOCATE (SOD(IMX),    ELWS(IMX),   BKT(IMX),    REAER(IMX))
+  ALLOCATE (SOD(IMX),    ELWS(IMX),   BKT(IMX),    REAER(IMX), SELWS(IMX))
   ALLOCATE (ICETH(IMX),  ICE(IMX),    ICESW(IMX))
   ALLOCATE (Q(IMX),      QC(IMX),     QERR(IMX),   QSSUM(IMX))
   ALLOCATE (KTI(IMX),    SKTI(IMX),   SROSH(IMX),  SEG(IMX),    DLXRHO(IMX))
@@ -326,7 +337,7 @@ END IF
   ALLOCATE (CMBRS(NCT,NBR),  CMBRT(NCT,NBR),  INCN(NCT,NBR),   DTCN(NCT,NBR),   PRCN(NCT,NBR))
   ALLOCATE (FETCHU(IMX,NBR), FETCHD(IMX,NBR))
   ALLOCATE (IPRF(IMX,NWB),   ISNP(IMX,NWB),   ISPR(IMX,NWB),   BL(IMX,NWB))
-  ALLOCATE (H1(KMX,IMX),     H2(KMX,IMX),     BH1(KMX,IMX),    BH2(KMX,IMX),    BHR1(KMX,IMX),   BHR2(KMX,IMX),   QTOT(KMX,IMX))
+  ALLOCATE (H1(KMX,IMX),     H2(KMX,IMX),     BH1(KMX,IMX),    BH2(KMX,IMX),    BHR1(KMX,IMX),   BHR2(KMX,IMX),   QTOT(KMX,IMX) , BHRATIO(KMX,IMX))
   ALLOCATE (SAVH2(KMX,IMX),  AVH1(KMX,IMX),   AVH2(KMX,IMX),   AVHR(KMX,IMX),   SAVHR(KMX,IMX))
   ALLOCATE (LFPR(KMX,IMX),   BI(KMX,IMX), BNEW(KMX,IMX))        ! SW 1/23/06
   ALLOCATE (ADX(KMX,IMX),    ADZ(KMX,IMX),    DO1(KMX,IMX),    DO2(KMX,IMX),    DO3(KMX,IMX),    SED(KMX,IMX))
@@ -348,7 +359,7 @@ END IF
   ALLOCATE (SCRD(NOD,NWB),   SCRF(NOD,NWB),   PRFD(NOD,NWB),   PRFF(NOD,NWB))
   ALLOCATE (CPLD(NOD,NWB),   CPLF(NOD,NWB),   VPLD(NOD,NWB),   VPLF(NOD,NWB),   FLXD(NOD,NWB),   FLXF(NOD,NWB))
   ALLOCATE (EPIC(NWB,NEPTT),  EPICI(NWB,NEPTT), EPIPRC(NWB,NEPTT))
-  ALLOCATE (EPIVP(KMX,NWB,NEP), macrcvp(KMX,NWB,nmc),macrclp(KMX,imx,nmc))   ! cb 8/21/15
+  ALLOCATE (EPIVP(KMX,NWB,NEPT), macrcvp(KMX,NWB,nmcT),macrclp(KMX,imx,nmcT))   ! cb 8/21/15, SW 8/2024
   ALLOCATE (CUH(KMX,NCT,NBR),     CDH(KMX,NCT,NBR))
   ALLOCATE (EPM(KMX,IMX,NEPT),    EPD(KMX,IMX,NEPT),    EPC(KMX,IMX,NEPT))
   ALLOCATE (C1S(KMX,IMX,NCT),     CSSB(KMX,IMX,NCT),    CVP(KMX,NCT,NWB))
@@ -385,7 +396,7 @@ END IF
   ALLOCATE (BOD_CALCP(NBOD), BOD_CALCN(NBOD))                                                ! cb 5/19/2011
   ALLOCATE (TDG_SPILLWAY(NWDT,NSP),  TDG_GATE(NWDT,NGT),       INTERNAL_WEIR(KMX,IMX))
   ALLOCATE (ISO_EPIPHYTON(NWB,NEPT), VERT_EPIPHYTON(NWB,NEPT), LONG_EPIPHYTON(NWB,NEPT))
-  ALLOCATE (iso_macrophyte(NWB,nmc), vert_macrophyte(NWB,nmc), long_macrophyte(NWB,nmc))     ! cb 8/21/15
+  ALLOCATE (iso_macrophyte(NWB,nmcT), vert_macrophyte(NWB,nmcT), long_macrophyte(NWB,nmcT))     ! cb 8/21/15
   ALLOCATE (LATERAL_SPILLWAY(NSP),   LATERAL_GATE(NGT),        LATERAL_PUMP(NPU),        LATERAL_PIPE(NPI))
   ALLOCATE (INTERP_HEAD(NBR),        INTERP_WITHDRAWAL(NWD),   INTERP_EXTINCTION(NWB),   INTERP_DTRIBS(NBR))
   ALLOCATE (INTERP_OUTFLOW(NST,NBR), INTERP_INFLOW(NBR),       INTERP_METEOROLOGY(NWB),  INTERP_TRIBS(NTR))
@@ -409,7 +420,7 @@ END IF
   ALLOCATE (B2SP(NSP),   AGASSP(NSP), BGASSP(NSP), CGASSP(NSP), EQSP(NSP),   GASSPC(NSP), JBUSP(NSP),  JBDSP(NSP))
   ALLOCATE (IUPU(NPU),   IDPU(NPU),   EPU(NPU),    STRTPU(NPU), ENDPU(NPU),  EONPU(NPU),  EOFFPU(NPU), QPU(NPU),   PPUC(NPU))
   ALLOCATE (ETPU(NPU),   EBPU(NPU),   KTPU(NPU),   KBPU(NPU),   JWUPU(NPU),  JWDPU(NPU),  JBUPU(NPU),  JBDPU(NPU), PUMPON(NPU),PUMP_DOWNSTREAM(NPU))
-  ALLOCATE (IWD(NWDT),   KWD(NWDT),   QWD(NWDT),   EWD(NWDT),   KTW(NWDT),   KBW(NWDT))
+  ALLOCATE (IWD(NWDT),   KWD(NWDT),   QWD(NWDT),   EWD(NWDT),   KTW(NWDT),   KBW(NWDT), QWDSAV(NWDT))
   ALLOCATE (ITR(NTRT),   QTRFN(NTR),  TTRFN(NTR),  CTRFN(NTR),  ELTRT(NTRT), ELTRB(NTRT), TRC(NTRT),   JBTR(NTRT), QTRF(KMX,NTRT))
   ALLOCATE (TTLB(IMX),   TTRB(IMX),   CLLB(IMX),   CLRB(IMX))
   ALLOCATE (SRLB1(IMX),  SRRB1(IMX),  SRLB2(IMX),  SRRB2(IMX),  SRFJD1(IMX), SHADEI(IMX), SRFJD2(IMX))
@@ -437,7 +448,7 @@ END IF
   ALLOCATE  (PRINT_MACROPHYTE(NWB,NMCT), MACROPHYTE_CALC(NWB,NMCT),MACWBC(NWB,NMCTT),CONV2(KMX,KMX),MPRWBC(NWB,NMCTT))
   ALLOCATE  (MAC(KMX,IMX,NMCT), MACRC(KMX,KMX,IMX,NMCT),MACT(KMX,KMX,IMX), MACRM(KMX,KMX,IMX,NMCT), MACSS(KMX,KMX,IMX,NMCT))
   ALLOCATE  (MGR(KMX,KMX,IMX,NMCT),MMR(KMX,IMX,NMCT), MRR(KMX,IMX,NMCT))
-  ALLOCATE  (SMACRC(KMX,KMX,IMX,NMCT), SMACRM(KMX,KMX,IMX,NMCT))
+  !ALLOCATE  (SMACRC(KMX,KMX,IMX,NMCT), SMACRM(KMX,KMX,IMX,NMCT))
   ALLOCATE  (SMACT(KMX,KMX,IMX), SMAC(KMX,IMX,NMCT))
   ALLOCATE  (MT1(NMCT),MT2(NMCT),MT3(NMCT),MT4(NMCT),MK1(NMCT),MK2(NMCT),MK3(NMCT),MK4(NMCT),MG(NMCT),MR(NMCT),MM(NMCT))
   ALLOCATE  (MBMP(NMCT), MMAX(NMCT), CDDRAG(NMCT), DWV(NMCT), DWSA(NMCT), ANORM(NMCT))
@@ -611,7 +622,7 @@ ENDIF
   LDOMD  => KF(:,:,41); LRDOMD => KF(:,:,42); RDOMD  => KF(:,:,43); LDOMAP => KF(:,:,44)
   LDOMEP => KF(:,:,45); LPOMD  => KF(:,:,46); LRPOMD => KF(:,:,47); RPOMD  => KF(:,:,48); LPOMAP => KF(:,:,49)
   LPOMEP => KF(:,:,50); LPOMNS => KF(:,:,51); RPOMNS => KF(:,:,52); CBODDK => KF(:,:,53); DOAP   => KF(:,:,54)
-  DOEP   => KF(:,:,55); DOAR   => KF(:,:,56); DOER   => KF(:,:,57); DOPOM  => KF(:,:,58); DODOM  => KF(:,:,59)   
+  DOEP   => KF(:,:,56); DOAR   => KF(:,:,55); DOER   => KF(:,:,57); DOPOM  => KF(:,:,58); DODOM  => KF(:,:,59)   
   DOOM   => KF(:,:,60); DONIT  => KF(:,:,61); DOBOD  => KF(:,:,62); DOAE   => KF(:,:,63); DOSED  => KF(:,:,KF_DO_SED)
   DOSOD  => KF(:,:,KF_DO_SOD); TICAP  => KF(:,:,66); TICEP  => KF(:,:,67); SEDD   => KF(:,:,68); SEDAS  => KF(:,:,69)
   SEDOMS => KF(:,:,70); SEDNS  => KF(:,:,71); SODD   => KF(:,:,72)
@@ -1228,7 +1239,7 @@ ENDIF
       NSCR(2:NWB)=NSCR(1)
   DO J=1,NSCR(1)
       SCRD(J,2:NWB)=SCRD(J,1)
-      SCRF(J,2:NWB)=SCRD(J,1)
+      SCRF(J,2:NWB)=SCRF(J,1)
   ENDDO
   ENDIF
    
@@ -1413,7 +1424,7 @@ IF(CONFN=='w2_con.npt')THEN
 
 ! Constituent control cards
 
-  READ (CON,'(//8X,2A8,I8,F8.0,A8)')           CCC, LIMC, CUF,PCO2ATMPPM,CO2YEARLYPPM
+  READ (CON,'(//8X,2A8,F8.0,F8.0,A8)')           CCC, LIMC, CUF,PCO2ATMPPM,CO2YEARLYPPM
   
   READ (CON,'(//8x,A8,A8)')     ATM_DEPOSITIONC(1),ATM_DEPOSITION_INTERPOLATION(1)
   DO JW=2,NWB
@@ -1429,7 +1440,7 @@ IF(CONFN=='w2_con.npt')THEN
   END DO
    
   READ (CON,'(/)')
-  do jf=1,72   
+  do jf=1,74   
     if(nwb < 10)READ (CON,'(A8,(:9A8))')         KFNAME2(JF),(KFWBC(JF,JW),  JW=1,NWB)
     if(nwb >= 10)READ (CON,'(A8,9A8,/(:8X,9A8))')         KFNAME2(JF),(KFWBC(JF,JW),  JW=1,NWB)          !cb 9/13/12  sw2/18/13  Foramt 6/16/13 8/13/13
     KFNAME2(JF)=KFNAME2(JF)(1:8)//'(kg/d)'
@@ -1437,12 +1448,16 @@ IF(CONFN=='w2_con.npt')THEN
 
   READ (CON,'(/)')
   DO JC=1,NCT
-    READ (CON,'(:8X,9F8.0)')          (C2I(JC,JW),    JW=1,NWB)
+    READ (CON,'(:8X,F8.0)')          (C2I(JC,JW),    JW=1,NWB)
   END DO
   READ (CON,'(/)')
   DO JC=1,NCT
     READ (CON,'(:8X,9A8)')            (CPRWBC(JC,JW), JW=1,NWB)
   END DO
+  READ (CON,'(/)')                                                                                        !SR 08/20/2023
+  DO JC=1,NCT                                                                                             !SR 08/20/2023
+    READ (CON,'(:8X,9A8)')            (C_ATM_DEPOSITION(JC,JW), JW=1,NWB)                                 !SR 08/20/2023
+  END DO   
   READ (CON,'(/)')
   DO JC=1,NCT
     READ (CON,'(:8X,9A8)')            (CINBRC(JC,JB), JB=1,NBR)
@@ -1461,13 +1476,12 @@ IF(CONFN=='w2_con.npt')THEN
   END DO
 
 ! Kinetics coefficients
-
   READ (CON,'(//(8X,4F8.0,2A8))')     (EXH2O(JW),  EXSS(JW),   EXOM(JW),   BETA(JW),   EXC(JW),   EXIC(JW),    JW=1,NWB)
   READ (CON,'(//(8X,9F8.0))')         (EXA(JA),                                                                JA=1,NAL)
   READ (CON,'(//(8X,9F8.0))')         (EXZ(JZ),                                                                JZ=1,NZPT)  
   READ (CON,'(//(8X,9F8.0))')         (EXM(JM),                                                                JM=1,NMCT)  
   READ (CON,'(//(8X,8F8.0))')         (CGQ10(JG),  CG0DK(JG),  CG1DK(JG),  CGS(JG), CGLDK(JG),CGKLF(JG),CGCS(JG),CGR(JG),           JG=1,NGC) !LCJ 2/26/15
-  READ (CON,'(//(8X,F8.0,A,2F8.0))')   (SSS(JS),    SEDRC(JS),  TAUCR(JS), SSCS(JS),         JS=1,NSS)     ! READ (CON,'(//(8X,F8.0,A8,2F8.0,I8))') (SSS(JS), SEDRC(JS),  TAUCR(JS),  SSFLOC(JS), FLOCEQN(JS),            JS=1,NSS) !SR 04/21/13
+  READ (CON,'(//(8X,F8.0,A8,2F8.0))')   (SSS(JS),    SEDRC(JS),  TAUCR(JS), SSCS(JS),         JS=1,NSS)     ! READ (CON,'(//(8X,F8.0,A8,2F8.0,I8))') (SSS(JS), SEDRC(JS),  TAUCR(JS),  SSFLOC(JS), FLOCEQN(JS),            JS=1,NSS) !SR 04/21/13
   
   READ (CON,'(//(8X,4F8.0))')         (BACTQ10(JW), BACT1DK(JW),BACTS(JW),BACTLDK(JW),       JW=1,NWB)
   !READ (CON,'(//(8X,3F8.0))')         (A_DISG(JW), B_DISG(JW), C_DISG(JW),         JW=1,NWB)
@@ -1568,14 +1582,14 @@ IF(CONFN=='w2_con.npt')THEN
   READ (CON,'(//(8X,2F8.0))')         (O2NH4(JW),  O2OM(JW),                                                   JW=1,NWB)
   READ (CON,'(//(8X,2F8.0))')         (O2AR(JA),   O2AG(JA),                                                   JA=1,NAL)
   READ (CON,'(//(8X,2F8.0))')         (O2ER(JE),   O2EG(JE),                                                   JE=1,NEPT)
-  READ (CON,'(//(8X,F8.0))')          (O2ZR(JZ),                                                               JZ=1,NZPT)
+  READ (CON,'(//(8X,F8.0))')          (O2ZR(JZ),                                                               JZ=1,NZPT) 
   READ (CON,'(//(8X,2F8.0))')         (O2MR(JM),   O2MG(JM),                                                   JM=1,NMCT)
   READ (CON,'(//(8X,F8.0))')           KDO
   IF(KDO==0.0)KDO=0.01                                       ! SW 10/24/15 ERROR TRAPPING
   READ (CON,'(//(8X,2A8,6F8.0,A8))')     (SEDCC(JW),   SEDPRC(JW), SEDCI(JW),  SDK(JW), SEDS(JW),   FSOD(JW),   FSED(JW), SEDB(JW),DYNSEDK(JW),   JW=1,NWB)  ! cb 11/28/06
   READ (CON,'(//(8X,4F8.0))')         (SODT1(JW),  SODT2(JW),  SODK1(JW),  SODK2(JW),                          JW=1,NWB)
   READ (CON,'(//(8X,9F8.0))')         (SOD(I),                                                                  I=1,IMX) 
-  READ (CON,'(//(8X,A8,I8,4F8.2))')   (REAERC(JW), NEQN(JW),   RCOEF1(JW), RCOEF2(JW), RCOEF3(JW), RCOEF4(JW), DGPO2(JW), MINKL(JW), JW=1,NWB)
+  READ (CON,'(//(8X,A8,I8,6F8.2))')   (REAERC(JW), NEQN(JW),   RCOEF1(JW), RCOEF2(JW), RCOEF3(JW), RCOEF4(JW), DGPO2(JW), MINKL(JW), JW=1,NWB)
 
 ! Input filenames
 
@@ -1701,8 +1715,8 @@ ELSE
   
   READ (CON,*)     (BACTQ10(JW),  JW=1,NWB)
   READ (CON,*)     (BACT1DK(JW),  JW=1,NWB)
-  READ (CON,*)     (BACTLDK(JW),  JW=1,NWB)
   READ (CON,*)     (BACTS(JW),    JW=1,NWB)
+  READ (CON,*)     (BACTLDK(JW),  JW=1,NWB)  
   READ (CON,*)
   READ (CON,*)
   
@@ -1775,11 +1789,11 @@ ELSE
   READ (CON,*)
   READ (CON,*)  
   
-  IF(NEPT<6)THEN
-      NEPTT=5
-  ELSE
-      NEPTT=NEPT
-  ENDIF
+  !IF(NEPT<6)THEN  Redundant code SW 8/2023
+  !    NEPTT=5
+  !ELSE
+  !    NEPTT=NEPT
+  !ENDIF
   
   DO JE=1,NEPTT
   READ (CON,*)         (EPIC(JW,JE),  JW=1,NWB)
@@ -2213,19 +2227,20 @@ ENDIF
     ALGAE_SETTLING_EXIST=.FALSE.  
     CONSTITUENTS =  CCC  == '      ON'
     IF(CONSTITUENTS)THEN
-    DO J=NATS,NATE
-        IF(CAC(J) == '      ON')THEN
-            ALGAE_TOXIN = .TRUE.
-            EXIT
-        ENDIF
-    ENDDO
-    DO JA=1,NAL
-        IF(AVERTM(JA)=='      ON')THEN
-            ALGAE_SETTLING_EXIST=.TRUE.  
-            EXIT
-        ENDIF
-    ENDDO
-  
+    !DO J=NATS,NATE
+    !    IF(CAC(J) == '      ON')THEN
+    !        ALGAE_TOXIN = .TRUE.
+    !        EXIT
+    !    ENDIF
+    !ENDDO
+    !DO JA=1,NAL
+    !    IF(AVERTM(JA)=='      ON')THEN
+    !        ALGAE_SETTLING_EXIST=.TRUE.  
+    !        EXIT
+    !    ENDIF
+    !ENDDO
+    IF (ANY(CAC(NATS:NATE) == '      ON')) ALGAE_TOXIN = .TRUE.   ! SR 8/2023 Code suggestion more compact than above
+    IF (ANY(AVERTM == '      ON')) ALGAE_SETTLING_EXIST = .TRUE.  
   CALL KINETICS
   ENDIF
   
@@ -2316,7 +2331,7 @@ ENDIF
 ! Output file unit numbers
 
   ALLOCATE (TSR(NIKTSR))
-  ALLOCATE (WDO(NIWDO,4),WDO2(NWD+NST+NGT+NSP+NPU+NPI,4))  
+  ALLOCATE (WDO(NIWDO,5),WDO2(NWD+NST+NGT+NSP+NPU+NPI,4))                            ! changed from WDO(NIWDO,4)      !SR 12/19/2022
   DO J=1,8    ! SW 9/28/2018
     DO JW=1,NWB
       OPT(JW,J) = NUNIT; NUNIT = NUNIT+1
@@ -2330,6 +2345,7 @@ ENDIF
     WDO(JW,2) = NUNIT; NUNIT = NUNIT+1
     WDO(JW,3) = NUNIT; NUNIT = NUNIT+1
     WDO(JW,4) = NUNIT; NUNIT = NUNIT+1
+    WDO(JW,5) = NUNIT; NUNIT = NUNIT+1
   END DO
 
 ! BIOENERGETICS bioexp mlm output filenumber assigment
@@ -2379,6 +2395,12 @@ ENDIF
     L1          = 1
     L2          = MAX(4,SCAN (CDNAME(JC),',')-1)
     CDNAME3(JC) = CDNAME(JC)(1:L2)
+    IF(L2<=19)THEN
+        CDNAME1(JC) = CDNAME(JC)(1:L2)
+    ELSE
+        CDNAME1(JC) = CDNAME2(JC)
+    ENDIF
+    CUNIT3(JC)  = CDNAME(JC)(L2+3:L2+8)
     DO WHILE (L1 < L2)
       IF (CDNAME(JC)(L1:L1) == ' ') CDNAME3(JC)(L1:L1) = '_'
       L1 = L1+1
@@ -2408,12 +2430,19 @@ ENDIF
     LONG_SEDIMENT2(JW)    = SEDCI2(JW)   <  -1.0 .AND. SEDCC2(JW)   == '      ON'
     ENDIF
 ! Amaila End
-    ISO_EPIPHYTON(JW,:)  = EPICI(JW,:) >=  0   .AND. EPIC(JW,:) == '      ON'
-    VERT_EPIPHYTON(JW,:) = EPICI(JW,:) == -1.0 .AND. EPIC(JW,:) == '      ON'
-    LONG_EPIPHYTON(JW,:) = EPICI(JW,:) <  -1.0 .AND. EPIC(JW,:) == '      ON'
-    iso_macrophyte(JW,:)  = MACWBCI(JW,:) >=  0   .AND. MACWBC(JW,:) == '      ON'   ! cb 8/21/15
-    vert_macrophyte(JW,:) = MACWBCI(JW,:) == -1.0 .AND. MACWBC(JW,:) == '      ON'   ! cb 8/21/15
-    long_macrophyte(JW,:) = MACWBCI(JW,:) <  -1.0 .AND. MACWBC(JW,:) == '      ON'   ! cb 8/21/15
+    !ISO_EPIPHYTON(JW,:)  = EPICI(JW,:) >=  0   .AND. EPIC(JW,:) == '      ON'
+    !VERT_EPIPHYTON(JW,:) = EPICI(JW,:) == -1.0 .AND. EPIC(JW,:) == '      ON'
+    !LONG_EPIPHYTON(JW,:) = EPICI(JW,:) <  -1.0 .AND. EPIC(JW,:) == '      ON'
+    !iso_macrophyte(JW,:)  = MACWBCI(JW,:) >=  0   .AND. MACWBC(JW,:) == '      ON'   ! cb 8/21/15
+    !vert_macrophyte(JW,:) = MACWBCI(JW,:) == -1.0 .AND. MACWBC(JW,:) == '      ON'   ! cb 8/21/15
+    !long_macrophyte(JW,:) = MACWBCI(JW,:) <  -1.0 .AND. MACWBC(JW,:) == '      ON'   ! cb 8/21/15
+    ISO_EPIPHYTON(JW,1:NEPT)   = EPICI(JW,1:NEPT)   >=  0   .AND. EPIC(JW,1:NEPT)   == '      ON'
+    VERT_EPIPHYTON(JW,1:NEPT)  = EPICI(JW,1:NEPT)   == -1.0 .AND. EPIC(JW,1:NEPT)   == '      ON'
+    LONG_EPIPHYTON(JW,1:NEPT)  = EPICI(JW,1:NEPT)   <  -1.0 .AND. EPIC(JW,1:NEPT)   == '      ON'
+    ISO_MACROPHYTE(JW,1:NMCT)  = MACWBCI(JW,1:NMCT) >=  0   .AND. MACWBC(JW,1:NMCT) == '      ON'
+    VERT_MACROPHYTE(JW,1:NMCT) = MACWBCI(JW,1:NMCT) == -1.0 .AND. MACWBC(JW,1:NMCT) == '      ON'
+    LONG_MACROPHYTE(JW,1:NMCT) = MACWBCI(JW,1:NMCT) <  -1.0 .AND. MACWBC(JW,1:NMCT) == '      ON'
+
     DO JC=1,NCT
       ISO_CONC(JC,JW)  = C2I(JC,JW) >=  0.0
       VERT_CONC(JC,JW) = C2I(JC,JW) == -1.0 .AND. CAC(JC) == '      ON'
@@ -2422,15 +2451,24 @@ ENDIF
       IF (LONG_CONC(JC,JW)) LONG_PROFILE(JW) = .TRUE.
     END DO
     IF (VERT_SEDIMENT(JW))         VERT_PROFILE(JW) = .TRUE.
+    IF(STANDING_BIOMASS_DECAY)THEN
     IF (VERT_SEDIMENT1(JW))         VERT_PROFILE(JW) = .TRUE.  ! amaila
     IF (VERT_SEDIMENT2(JW))         VERT_PROFILE(JW) = .TRUE.  ! amaila
+    ENDIF
     IF (LONG_SEDIMENT(JW))         LONG_PROFILE(JW) = .TRUE.
+    IF(STANDING_BIOMASS_DECAY)THEN
     IF (LONG_SEDIMENT1(JW))         LONG_PROFILE(JW) = .TRUE.  ! amaila
     IF (LONG_SEDIMENT2(JW))         LONG_PROFILE(JW) = .TRUE.  ! amaila
-    IF (ANY(VERT_EPIPHYTON(JW,:))) VERT_PROFILE(JW) = .TRUE.
-    IF (ANY(LONG_EPIPHYTON(JW,:))) LONG_PROFILE(JW) = .TRUE.
-    IF (ANY(VERT_macrophyte(JW,:))) VERT_PROFILE(JW) = .TRUE.   ! cb 8/21/15
-    IF (ANY(LONG_macrophyte(JW,:))) LONG_PROFILE(JW) = .TRUE.   ! cb 8/21/15
+    ENDIF
+    !IF (ANY(VERT_EPIPHYTON(JW,:))) VERT_PROFILE(JW) = .TRUE.
+    !IF (ANY(LONG_EPIPHYTON(JW,:))) LONG_PROFILE(JW) = .TRUE.
+    !IF (ANY(VERT_macrophyte(JW,:))) VERT_PROFILE(JW) = .TRUE.   ! cb 8/21/15
+    !IF (ANY(LONG_macrophyte(JW,:))) LONG_PROFILE(JW) = .TRUE.   ! cb 8/21/15
+    IF (NEP > 0 .AND. ANY(VERT_EPIPHYTON(JW,1:NEPT)))  VERT_PROFILE(JW) = .TRUE.
+    IF (NEP > 0 .AND. ANY(LONG_EPIPHYTON(JW,1:NEPT)))  LONG_PROFILE(JW) = .TRUE.
+    IF (NMC > 0 .AND. ANY(VERT_MACROPHYTE(JW,1:NMCT))) VERT_PROFILE(JW) = .TRUE.
+    IF (NMC > 0 .AND. ANY(LONG_MACROPHYTE(JW,1:NMCT))) LONG_PROFILE(JW) = .TRUE.
+
     END IF                          ! cb 12/04/08
     IF (VERT_TEMP(JW))             VERT_PROFILE(JW) = .TRUE.
     IF (LONG_TEMP(JW))             LONG_PROFILE(JW) = .TRUE.
@@ -2466,11 +2504,12 @@ ENDIF
    IF (OM_BUFFERING) THEN
      SDENI = ABS(SDENI)
      IF (OMTYPE == '    DIST') THEN
-       IF (ANY(PKSD <= 0)) THEN
-         WARNING_OPEN = .TRUE.
-         WRITE (WRN,'(A)') 'WARNING -- PKSD inputs in the ph_buffering.npt file must be greater than zero.'
-         WRITE (WRN,'(A/)') 'Please fix your inputs. For now, PKSD values of zero will be set to 1.'
-       END IF
+       !IF (ANY(PKSD <= 0)) THEN
+       !  WARNING_OPEN = .TRUE.
+       !  WRITE (WRN,'(A)') 'WARNING -- PKSD inputs in the ph_buffering.npt file must be greater than zero.'
+       !  WRITE (WRN,'(A/)') 'Please fix your inputs. For now, PKSD values of zero will be set to 1.'
+       !END IF
+       PKSD_INPUT_WARNING = (ANY(PKSD <= 0))                            !SR 11/09/19
        DO JA=1,NAGI
          IF (PKSD(JA) <= 0) PKSD(JA) = 1.0
        END DO

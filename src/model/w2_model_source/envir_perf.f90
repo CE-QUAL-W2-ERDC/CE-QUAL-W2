@@ -10,9 +10,10 @@ CHARACTER(1) :: I_INT
 CHARACTER(8) :: CHAR8
 character(30):: CHAR30
 INTEGER :: N
-LOGICAL :: CSVFORMAT
+LOGICAL :: CSVFORMAT,EVPYEARLY
+REAL :: DAYTEST
 
-save
+SAVE
 
 !  initializing variables at first call
  if(NIT==1.or.iopenfish==0)then
@@ -73,7 +74,12 @@ save
       READ (CONE,1050) (CD_E(JD),CD_INT(JD), CD_TOP(JD), JD=1,NDC)
       ENDIF
       CLOSE(CONE)
-
+      EVPYEARLY=.FALSE.
+      IF(SJDAY1 < 0.0)THEN           ! SW 9/22/2022
+          EVPYEARLY=.TRUE.
+          SJDAY1=ABS(SJDAY1)
+      ENDIF
+      
           DO JC=1,NCT
           IF (CC_E(JC).EQ.' ON') THEN
             NAC_E     = NAC_E+1
@@ -123,7 +129,14 @@ save
   if(iopenfish.eq.3)go to 650     !iopenfish=3 is end of simulation deallocate arrays
   
   if(selectivec == ' ON')then
-      if(jdayG < sjday1  .or. jdayG > sjday2)go to 650
+      
+           IF(.NOT.EVPYEARLY)THEN
+             DAYTEST=JDAY
+           ELSE
+             DAYTEST=REAL(JDAYG)+JDAY-INT(JDAY)
+           END IF    
+
+      if(DAYTEST < sjday1  .or. DAYTEST > sjday2)go to 650          !if(jdayG < sjday1  .or. jdayG > sjday2)go to 650
   endif
   
 DO N=1,I_SEGINT            ! LOOP OVER SEGMENT INTERVALS BASED ON INPUT DATA  
@@ -357,7 +370,7 @@ end do
 if(nac_e > 0)then
        open(CONE,file='envrprf_c'//I_INT//'.csv',status='unknown')
        write(CONE,4000)(cname2(cn_e(jc)),jc=1,nac_e)
-4000 format(<nac_e>(a8,'_interval, Fraction_of_volume, '))
+4000 format(<nac_e>(a15,'_interval, Fraction_of_volume, '))
        do jc=1,nac_e
         if(c_cnt(N,jc).gt.0.0)then
         c_avg(jc)=c_tot(N,jc)/c_cnt(N,jc)
@@ -385,7 +398,7 @@ if(nac_e > 0)then
   if(nacd_e > 0)then     
        open(CONE,file='envrprf_cd'//I_INT//'.csv',status='unknown')
      write(CONE,4001)(cdname2(cdn_e(jc)),jc=1,nacd_e)
-4001 format(<nacd_e>(a8,'_interval, Fraction_of_volume,'))
+4001 format(<nacd_e>(a15,'_interval, Fraction_of_volume,'))
        do jc=1,nacd_e
         if(cd_cnt(N,jc).gt.0.0)then
         cd_avg(jc)=cd_tot(N,jc)/cd_cnt(N,jc)
@@ -413,10 +426,10 @@ if(nac_e > 0)then
     endif
 endif
 ENDDO
-       DEallocate(c_cnt,cd_cnt,c_class,cd_class,c_tot,cd_tot,t_class,v_class,c_sum,cd_sum)
-       DEallocate(conc_c,conc_cd)
-       DEallocate(cc_e,c_int,c_top,cd_e,cd_int,cd_top,c_avg,cd_avg,cn_e,cdn_e)
-       DEALLOCATE(T_TOT,T_CNT,V_TOT,V_CNT,D_TOT,D_CNT,D_CLASS,VOLGL,SUMVOLT)
+       !DEallocate(c_cnt,cd_cnt,c_class,cd_class,c_tot,cd_tot,t_class,v_class,c_sum,cd_sum)
+       !DEallocate(conc_c,conc_cd)
+       !DEallocate(cc_e,c_int,c_top,cd_e,cd_int,cd_top,c_avg,cd_avg,cn_e,cdn_e)
+       !DEALLOCATE(T_TOT,T_CNT,V_TOT,V_CNT,D_TOT,D_CNT,D_CLASS,VOLGL,SUMVOLT)
        
 124       format(<nacd_e>(f10.4,',',e12.4,','))
 125       format((f6.2,',',e12.4,','))

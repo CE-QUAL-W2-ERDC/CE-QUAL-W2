@@ -25,7 +25,7 @@ MODULE SEDMODEL_LOCAL
     Real(8)    :: d1, d2, Depth, UctAvg, Wf, BetaD, Sum1, Sdfz
     Real(8)    :: rgha, rghapda, Caks, Srho, Capda, Yalinp, Value1
     Real(8)    :: SNetFlx, SSettle
-    Real       :: Dummy
+    Real(8)    :: Dummy
     Logical    :: BottomUpdated
     END MODULE
     
@@ -427,12 +427,17 @@ MODULE SEDMODEL_LOCAL
                     DO I=CUS(JB)-1,DS(JB)
                         If(.not. BedConsolidationSeg(SegNumI))Cycle  ! cb 7/5/18
                         DEPTHB(KTWB(JW),I) = H1(KTWB(JW),I)
-                        if(kbi(i) < kb(i))depthb(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))    ! SW 1/23/06
-                        DEPTHM(KTWB(JW),I) = H1(KTWB(JW),I)*0.5
-                        if(kbi(i) < kb(i))depthm(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))*0.5    ! SW 1/23/06
+                        !if(kbi(i) < kb(i))depthb(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))    ! SW 1/23/06
+                        DEPTHM(KTWB(JW),I) = H1(KTWB(JW),I)*0.5D0
+                        !if(kbi(i) < kb(i))depthm(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))*0.5    ! SW 1/23/06
+                          IF (KBI(I) < KB(I) .AND. (EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB) < H1(KTWB(JW),I)) THEN   ! SR 1/2024
+                           DEPTHB(KTWB(JW),I) =  H1(KTWB(JW),I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)
+                           DEPTHM(KTWB(JW),I) = (H1(KTWB(JW),I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*0.5D0
+                         END IF                       
+                        
                         DO K=KTWB(JW)+1,KMX
                             DEPTHB(K,I) = DEPTHB(K-1,I)+ H1(K,I)
-                            DEPTHM(K,I) = DEPTHM(K-1,I)+(H1(K-1,I)+H1(K,I))*0.5
+                            DEPTHM(K,I) = DEPTHM(K-1,I)+(H1(K-1,I)+H1(K,I))*0.5D0
                         END DO
                     END DO
                 END DO

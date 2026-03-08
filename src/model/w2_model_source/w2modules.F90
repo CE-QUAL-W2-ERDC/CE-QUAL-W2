@@ -18,13 +18,8 @@
 !**                                                 e-mail: wellss@pdx.edu                                                        **
 !**                                       Major contributors to this version include                                              ** 
 !**                                           Dr. Zhong Zhang <zz3@pdx.edu>, Portland State University                            **
-!**                                                                                                                               **
-!**  Main contributors to CE-QUAL-W2 are shown in User Manual. Primary developer at the Corps has been                            **
-!**                                                  Thomas M. Cole, Retired                                                      **
-!**                                                Water Quality Modeling Group                                                   **
-!**                                                U.S. Army Corps of Engineers                                                   **
-!**                                                Waterways Experiment Station                                                   **
-!**                                                Vicksburg, Mississippi 39180                                                   **
+!**                                           Dr. Stewart Rounds, USGS                                                            **
+!**  Main contributors to CE-QUAL-W2 are shown in User Manual Part 1.                                                             **
 !**                                                                                                                               **
 !**                                                                                                                               **
 !***********************************************************************************************************************************
@@ -38,7 +33,13 @@
 !**  for any damages,including incidental or consequential damages, arising                                                       **
 !**  from use or misuse of this model, or from results achieved or conclusions drawn by others.  Distribution of this model is    **
 !**  restricted by the Export Administration Act of 1969,  50 app. USC subsections 2401-2420, as amended, and other applicable    **
-!**  laws or regulations.                                                                                                         **
+!**  laws or regulations.                                            
+!
+!MIT License Copyright (c) 2023 drswells
+!Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+!The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+!THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+!OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                                             **
 !**                                                                                                                               **
 !***********************************************************************************************************************************
 
@@ -46,7 +47,7 @@
 !**                                                      Module Declaration                                                       **
 !***********************************************************************************************************************************
 MODULE MSCLIB
-  INTEGER :: HTHREAD
+  INTEGER(8) :: HTHREAD
   LOGICAL :: STOP_PUSHED, STOPPED, RESTART_PUSHED, RESTART_EXISTS
   INCLUDE "RESOURCE.FD"
   INTERFACE
@@ -77,10 +78,10 @@ END MODULE PREC
 MODULE RSTART
   USE PREC
   REAL(R8)                                           :: DLTS,   CURMAX, DLTFF, DLTMAXX    ! SW 7/13/2010
-  INTEGER                                            :: RSODP,  DLTDP,  TSRDP,  WDODP,  CUF,    RSO=31
+  INTEGER                                            :: RSODP,  DLTDP,  TSRDP,  WDODP,  RSO=31    ! CUF,
   INTEGER,           ALLOCATABLE, DIMENSION(:)       :: SNPDP,  VPLDP,  CPLDP,  PRFDP,  SCRDP,  SPRDP,  FLXDP, NSPRF
-  !REAL                                               :: NXTMRS, NXTMWD, NXTMTS
-  REAL(R8)                                            :: NXTMRS, NXTMWD, NXTMTS, NXTMWD_sec    ! cb 4/6/17
+  REAL                                               :: CUF 
+  REAL(R8)                                           :: NXTMRS, NXTMWD, NXTMTS, NXTMWD_sec, NXTMUK    ! cb 4/6/17
   REAL,              ALLOCATABLE, DIMENSION(:)       :: NXTMSN, NXTMPR, NXTMSP, NXTMCP, NXTMVP, NXTMSC, NXTMFL
   REAL(R8),          ALLOCATABLE, DIMENSION(:)       :: SBKT,   ELTMF
   REAL(R8),          ALLOCATABLE, DIMENSION(:,:)     :: TSSUH2, TSSDH2, SAVH2,  SAVHR,  SU,     SW,     SAZ
@@ -97,8 +98,8 @@ MODULE GLOBAL
   USE PREC
   REAL*4                                             :: W2VER=4.5
   REAL(R8),   PARAMETER                              :: DAY=86400.0D0,  NONZERO=1.0D-20, REFL=0.94D0, FRAZDZ=0.14D0, DZMIN=1.4D-7
-  REAL(R8),   PARAMETER                              :: AZMIN=1.4D-6, DZMAX=1.0D3,     RHOW=1000.0D0
-  REAL(R8)                                           :: DLT,    DLTMIN, DLTTVD
+  REAL(R8),   PARAMETER                              :: AZMIN=1.4D-6, RHOW=1000.0D0   !DZMAX=1.0D3,     
+  REAL(R8)                                           :: DLT,    DLTMIN, DLTTVD,DZMAX=1.0D2     
   REAL(R8)                                           :: BETABR, START,  HMAX2,  CURRENT
   REAL(R8),   POINTER,            DIMENSION(:,:)     :: U,      W,      T2,     AZ,     RHO,    ST,     SB
   REAL(R8),   POINTER,            DIMENSION(:,:)     :: DLTLIM, VSH,    ADMX,   DM,     ADMZ,   HDG,    HPG,    GRAV
@@ -106,7 +107,7 @@ MODULE GLOBAL
   REAL(R8),   TARGET,ALLOCATABLE, DIMENSION(:,:,:)   :: C1,     C2,     C1S,    CSSB,   CSSK
   REAL(R8),   TARGET,ALLOCATABLE, DIMENSION(:,:,:)   :: KF,     CD
   REAL(R8),   TARGET,ALLOCATABLE, DIMENSION(:,:,:)   :: HYD
-  REAL,       TARGET,ALLOCATABLE, DIMENSION(:,:,:,:) :: AF,     EF
+  REAL(R8),       TARGET,ALLOCATABLE, DIMENSION(:,:,:,:) :: AF,     EF
   REAL(R8),          ALLOCATABLE, DIMENSION(:)       :: ICETH,  ELKT,   HMULT,  CMULT,  CDMULT, WIND2,  AZMAX,  PALT, Z0
   REAL,              ALLOCATABLE, DIMENSION(:)       :: TN_SEDSOD_NH4,NH3GASLOSS,TP_SEDSOD_PO4,TPOUT,TPTRIB,TPDTRIB,TPWD,TPPR,TPIN,TNOUT,TNTRIB,TNDTRIB,TNWD,TNPR,TNIN,ATMDEP_P,ATMDEP_N   !TP_SEDBURIAL,TN_SEDBURIAL,
   REAL(R8),          ALLOCATABLE, DIMENSION(:,:)     :: QSS,    VOLUH2, VOLDH2, QUH1,   QDH1,   UXBR,   UYBR,   VOL
@@ -139,19 +140,20 @@ MODULE GEOMC
   USE PREC
   INTEGER,           ALLOCATABLE, DIMENSION(:)       :: JBUH,   JBDH,   JWUH,   JWDH
   REAL(R8),          ALLOCATABLE, DIMENSION(:)       :: ALPHA,  SINA,   COSA,   SLOPE,  BKT,    DLX,    DLXR, SLOPEC, SINAC
-  REAL(R8),          ALLOCATABLE, DIMENSION(:,:)     :: H,      H1,     H2,     BH1,    BH2,    BHR1,    BHR2,   AVHR
+  REAL(R8),          ALLOCATABLE, DIMENSION(:,:)     :: H,      H1,     H2,     BH1,    BH2,    BHR1,    BHR2,   AVHR, BHRATIO
   REAL(R8),          ALLOCATABLE, DIMENSION(:,:)     :: B,      BI,     BB,     BH,     BHR,    BR,      EL,     AVH1,  AVH2, BNEW ! SW 1/23/06
   REAL(R8),          ALLOCATABLE, DIMENSION(:,:)     :: DEPTHB, DEPTHM, FETCHU, FETCHD
-  REAL(R8),          ALLOCATABLE, DIMENSION(:)       :: Z, ELWS
+  REAL(R8),          ALLOCATABLE, DIMENSION(:)       :: Z, ELWS, SELWS
   REAL(R8),          ALLOCATABLE, DIMENSION(:)       :: BCONSTRICTION
+  REAL(R8)                                           :: HTMP1,  HTMP2      ! temporary variables    SR 7/2024
   LOGICAL,           ALLOCATABLE, DIMENSION(:,:)     :: CONSTRICTION
 END MODULE GEOMC
 MODULE NAMESC
   INTEGER,           ALLOCATABLE, DIMENSION(:)       :: LNAME
-  CHARACTER(6),      ALLOCATABLE, DIMENSION(:)       :: CUNIT,  CUNIT2
-  CHARACTER(8),      ALLOCATABLE, DIMENSION(:)       :: CNAME2, CDNAME2
+  CHARACTER(9),      ALLOCATABLE, DIMENSION(:)       :: CUNIT,  CUNIT2, CUNIT3    ! (6) SW 8/24/2023
+  CHARACTER(15),      ALLOCATABLE, DIMENSION(:)      :: CNAME2, CDNAME2
   CHARACTER(9),      ALLOCATABLE, DIMENSION(:)       :: FMTH,   FMTC,   FMTCD
-  CHARACTER(19),     ALLOCATABLE, DIMENSION(:)       :: CNAME1
+  CHARACTER(43),     ALLOCATABLE, DIMENSION(:)       :: CNAME1, CDNAME1
   CHARACTER(43),     ALLOCATABLE, DIMENSION(:)       :: CNAME,  CNAME3, CDNAME, CDNAME3, HNAME
   CHARACTER(72),     ALLOCATABLE, DIMENSION(:)       :: TITLE
   CHARACTER(10),     ALLOCATABLE, DIMENSION(:,:)     :: CONV
@@ -198,13 +200,14 @@ USE PREC
 END MODULE SURFHE
 MODULE TVDC
   USE PREC
-  REAL(R8),              ALLOCATABLE, DIMENSION(:)       :: QIN,    QTR,    QDTR,   PR,     ELUH,   ELDH,   QWD,    QSUM
+  REAL(R8),              ALLOCATABLE, DIMENSION(:)       :: QIN,    QTR,    QDTR,   PR,     ELUH,   ELDH,   QSUM
   REAL(R8),              ALLOCATABLE, DIMENSION(:)       :: TIN,    TTR,    TDTR,   TPR,    TOUT,   TWDO,   TIND,   QIND
   REAL(R8),              ALLOCATABLE, DIMENSION(:)       :: TAIR,   TDEW,   CLOUD,  PHI,    SRON,   PALT_JW,ELWS_INI                              ! systdg PALT_JW, ELWS_INI
   REAL(R8),              ALLOCATABLE, DIMENSION(:,:)     :: CIN,    CTR,    CDTR,   CPR,    CIND,   TUH,    TDH,    QOUT
   REAL(R8),              ALLOCATABLE, DIMENSION(:,:,:)   :: CUH,    CDH
+  REAL(R8),              ALLOCATABLE, DIMENSION(:)       :: QWD,    QWDSAV                                                !SR 06/29/2021
   INTEGER                                            :: NAC,    NOPEN
-  INTEGER,           ALLOCATABLE, DIMENSION(:)       :: NACPR,  NACIN,  NACDT,  NACTR,  NACD,   CN
+  INTEGER,           ALLOCATABLE, DIMENSION(:)       :: NACPR,  NACIN,  NACDT,  NACTR,  NACD,   CN, CDNN
   INTEGER,           ALLOCATABLE, DIMENSION(:,:)     :: TRCN,   INCN,   DTCN,   PRCN
   LOGICAL                                            :: CONSTITUENTS
   CHARACTER(72)                                      :: QGTFN,  QWDFN,  WSCFN,  SHDFN
@@ -233,50 +236,50 @@ MODULE KINETIC
   REAL(R8),    POINTER,           DIMENSION(:,:)     :: AGESS, BACTSS, DISGSS
   REAL(R8),    POINTER,           DIMENSION(:,:)     :: RDOMSS, LPOMSS, RPOMSS, DOSS,   TICSS,  CASS
   REAL(R8),    POINTER,           DIMENSION(:,:)     :: ALKSS          ! enhanced pH buffering
-  REAL,    POINTER,               DIMENSION(:,:)     :: PH,     CO2   ,    HCO3,   CO3
-  REAL,    POINTER,               DIMENSION(:,:)     :: TN,     TP,     TKN
-  REAL,    POINTER,               DIMENSION(:,:)     :: DON,    DOP,    DOC,    NH3
-  REAL,    POINTER,               DIMENSION(:,:)     :: PON,    POP,    POC
-  REAL,    POINTER,               DIMENSION(:,:)     :: TON,    TOP,    TOC
-  REAL,    POINTER,               DIMENSION(:,:)     :: APR,    CHLA,   ATOT
-  REAL,    POINTER,               DIMENSION(:,:)     :: O2DG, TDG, TURB, SECCHID
-  REAL,    POINTER,               DIMENSION(:,:)     :: SSSI,   SSSO,   TISS,   TOTSS
-  REAL,    POINTER,               DIMENSION(:,:)     :: PO4AR,  PO4AG,  PO4AP,  PO4SD,  PO4SR,  PO4NS,  PO4POM, PO4DOM, PO4OM
-  REAL,    POINTER,               DIMENSION(:,:)     :: CH4SR, H2SSR, FEIISR, MNIISR
-  REAL,    POINTER,               DIMENSION(:,:)     :: PO4ER,  PO4EG,  PO4EP,  TICEP,  DOEP,   DOER
-  REAL,    POINTER,               DIMENSION(:,:)     :: NH4ER,  NH4EG,  NH4EP,  NO3EG,  DSIEG,  LDOMEP, LPOMEP
-  REAL,    POINTER,               DIMENSION(:,:)     :: NH4AR,  NH4AG,  NH4AP,  NH4SD,  NH4SR,  NH4D,   NH4POM, NH4DOM, NH4OM, NH3GAS
-  REAL,    POINTER,               DIMENSION(:,:)     :: NO3AG,  NO3D,   NO3SED
-  REAL,    POINTER,               DIMENSION(:,:)     :: DSIAG,  DSID,   DSISD,  DSISR,  DSIS
-  REAL,    POINTER,               DIMENSION(:,:)     :: PSIAM,  PSID,   PSINS
-  REAL,    POINTER,               DIMENSION(:,:)     :: FENS,   FESR
-  REAL,    POINTER,               DIMENSION(:,:)     :: LDOMAP, LDOMD,  LRDOMD, RDOMD
-  REAL,    POINTER,               DIMENSION(:,:)     :: LPOMAP, LPOMD,  LRPOMD, RPOMD,  LPOMNS, RPOMNS
-  REAL,    POINTER,               DIMENSION(:,:)     :: DOAP,   DOAR,   DODOM,  DOPOM,  DOOM,   DONIT
-  REAL,    POINTER,               DIMENSION(:,:)     :: DOSED,  DOSOD,  DOBOD,  DOAE
-  REAL,    POINTER,               DIMENSION(:,:)     :: CBODU,  CBODDK, TICAP
-  REAL,    POINTER,               DIMENSION(:,:)     :: SEDD,   SODD,   SEDAS,  SEDOMS, SEDNS
-  REAL,    POINTER,               DIMENSION(:,:)     :: SEDD1,SEDD2   
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: PH,     CO2   ,    HCO3,   CO3
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: TN,     TP,     TKN
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: DON,    DOP,    DOC,    NH3
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: PON,    POP,    POC
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: TON,    TOP,    TOC
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: APR,    CHLA,   ATOT
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: O2DG, TDG, TURB, SECCHID
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SSSI,   SSSO,   TISS,   TOTSS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: PO4AR,  PO4AG,  PO4AP,  PO4SD,  PO4SR,  PO4NS,  PO4POM, PO4DOM, PO4OM
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: CH4SR, H2SSR, FEIISR, MNIISR
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: PO4ER,  PO4EG,  PO4EP,  TICEP,  DOEP,   DOER
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: NH4ER,  NH4EG,  NH4EP,  NO3EG,  DSIEG,  LDOMEP, LPOMEP
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: NH4AR,  NH4AG,  NH4AP,  NH4SD,  NH4SR,  NH4D,   NH4POM, NH4DOM, NH4OM, NH3GAS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: NO3AG,  NO3D,   NO3SED
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: DSIAG,  DSID,   DSISD,  DSISR,  DSIS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: PSIAM,  PSID,   PSINS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: FENS,   FESR
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: LDOMAP, LDOMD,  LRDOMD, RDOMD
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: LPOMAP, LPOMD,  LRPOMD, RPOMD,  LPOMNS, RPOMNS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: DOAP,   DOAR,   DODOM,  DOPOM,  DOOM,   DONIT
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: DOSED,  DOSOD,  DOBOD,  DOAE
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: CBODU,  CBODDK, TICAP
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SEDD,   SODD,   SEDAS,  SEDOMS, SEDNS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SEDD1,SEDD2   
   REAL(R8),POINTER,               DIMENSION(:,:,:)   :: SS,     ALG,    CBOD,   CG
   REAL(R8),POINTER,               DIMENSION(:,:,:)   :: SSSS,   ASS,    CBODSS, CGSS
-  REAL,    POINTER,               DIMENSION(:,:,:)   :: AGR,    ARR,    AER,    AMR,    ASR
-  REAL,    POINTER,               DIMENSION(:,:,:)   :: EGR,    ERR,    EER,    EMR,    EBR
+  REAL(R8),    POINTER,               DIMENSION(:,:,:)   :: AGR,    ARR,    AER,    AMR,    ASR
+  REAL(R8),    POINTER,               DIMENSION(:,:,:)   :: EGR,    ERR,    EER,    EMR,    EBR
   REAL(R8),POINTER,               DIMENSION(:,:)     :: LDOMP,  RDOMP,  LPOMP,  RPOMP,  LDOMN,  RDOMN,  LPOMN,  RPOMN
   REAL(R8),POINTER,               DIMENSION(:,:)     :: LDOMPSS,  RDOMPSS, LPOMPSS, RPOMPSS, LDOMNSS, RDOMNSS
   REAL(R8),POINTER,               DIMENSION(:,:)     :: LPOMNSS,  RPOMNSS
-  REAL,    POINTER,               DIMENSION(:,:)     :: LDOMPAP,  LDOMPEP, LPOMPAP, LPOMPNS, RPOMPNS
-  REAL,    POINTER,               DIMENSION(:,:)     :: LDOMNAP,  LDOMNEP, LPOMNAP, LPOMNNS, RPOMNNS
-  REAL,    POINTER,               DIMENSION(:,:)     :: SEDDP,    SEDASP,  SEDOMSP, SEDNSP,  LPOMEPP
-  REAL,    POINTER,               DIMENSION(:,:)     :: SEDDN,    SEDASN,  SEDOMSN, SEDNSN,  LPOMEPN, SEDNO3
-  REAL,    POINTER,               DIMENSION(:,:)     :: SEDDC,    SEDASC,  SEDOMSC, SEDNSC,  LPOMEPC
-  REAL,    POINTER,               DIMENSION(:,:)     :: CBODNS,   SEDCB,   SEDCBP,  SEDCBN,  SEDCBC
-  REAL,    POINTER,               DIMENSION(:,:)     :: SEDBR,    SEDBRP,  SEDBRC,  SEDBRN, CO2REAER        !CB 11/30/06
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: LDOMPAP,  LDOMPEP, LPOMPAP, LPOMPNS, RPOMPNS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: LDOMNAP,  LDOMNEP, LPOMNAP, LPOMNNS, RPOMNNS
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SEDDP,    SEDASP,  SEDOMSP, SEDNSP,  LPOMEPP
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SEDDN,    SEDASN,  SEDOMSN, SEDNSN,  LPOMEPN, SEDNO3
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SEDDC,    SEDASC,  SEDOMSC, SEDNSC,  LPOMEPC
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: CBODNS,   SEDCB,   SEDCBP,  SEDCBN,  SEDCBC
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: SEDBR,    SEDBRP,  SEDBRC,  SEDBRN, CO2REAER        !CB 11/30/06
   REAL(R8),POINTER,               DIMENSION(:,:,:)   :: CBODP,    CBODN       ! CB 6/6/10
   REAL(R8),POINTER,               DIMENSION(:,:,:)   :: CBODPSS,    CBODNSS       ! CB 6/6/10
-  REAL,    POINTER,               DIMENSION(:,:)     :: CBODNSP,  CBODNSN          ! cb 6/6/10
-  REAL,    POINTER,               DIMENSION(:,:)     :: DOH2S,DOCH4,DOSEDIA, DOFE2
-  REAL,    POINTER,               DIMENSION(:,:)     :: H2SREAER,CH4REAER,CH4D,H2SD,SDINC,SDINP,SDINN,H2SSEDD
-  REAL,    POINTER,               DIMENSION(:,:)     :: FE2D,SDINFEOOH,SDINMNO2,MN2D,DOMN2
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: CBODNSP,  CBODNSN          ! cb 6/6/10
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: DOH2S,DOCH4,DOSEDIA, DOFE2
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: H2SREAER,CH4REAER,CH4D,H2SD,SDINC,SDINP,SDINN,H2SSEDD
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: FE2D,SDINFEOOH,SDINMNO2,MN2D,DOMN2
   REAL,              ALLOCATABLE, DIMENSION(:,:,:)   :: EPM,    EPD,    EPC
   REAL,              ALLOCATABLE, DIMENSION(:)       :: CGQ10,  CG0DK,  CG1DK,  CGS, CGLDK, CGKLF, CGCS, CGR  !LCJ 2/26/15 SW 10/16/15
   REAL,              ALLOCATABLE, DIMENSION(:)       :: SOD,    SDK,    LPOMDK, RPOMDK, LDOMDK, RDOMDK, LRDDK,  LRPDK
@@ -332,9 +335,9 @@ MODULE KINETIC
   REAL,              ALLOCATABLE, DIMENSION(:)       :: sdeni,pki,pksd,sden,pk,fract
   ! enhanced pH buffering end
   !
-  REAL(R8),    POINTER,           DIMENSION(:,:)     :: LDOMC,   RDOMC,   LPOMC,   RPOMC                                                ! W2V3.8 NEW STATE VARIABLES
-  REAL(R8),    POINTER,           DIMENSION(:,:)     :: LDOMCSS, RDOMCSS, LPOMCSS, RPOMCSS                                              ! W2V3.8 NEW STATE VARIABLES SOURCE AND SINK 
-  REAL,        ALLOCATABLE,       DIMENSION(:,:)     :: PSIEM,   SEDEB                                                                  ! W2V3.8 NEW FLUX
+  REAL(R8),    POINTER,           DIMENSION(:,:)     :: LDOMC,   RDOMC,   LPOMC,   RPOMC            ! ORGANIC CARBON STATE VARIABLES
+  REAL(R8),    POINTER,           DIMENSION(:,:)     :: LDOMCSS, RDOMCSS, LPOMCSS, RPOMCSS                                             
+  REAL,        ALLOCATABLE,       DIMENSION(:,:)     :: PSIEM,   SEDEB                                                                  
   REAL,        ALLOCATABLE,       DIMENSION(:,:)     :: LPOMPEP, LPOMNEP, LPOMCEP
   REAL,        ALLOCATABLE,       DIMENSION(:,:)     :: LPOMHD,  RPOMHD
   REAL,        ALLOCATABLE,       DIMENSION(:,:)     :: LDOMCAP, LDOMCEP, LPOMCAP, LPOMCNS, RPOMCNS
@@ -375,9 +378,10 @@ END MODULE KINETIC
 MODULE SELWC
   USE PREC
   REAL(R8),              ALLOCATABLE, DIMENSION(:)    :: VNORM,  QNEW
+  REAL(R8),              ALLOCATABLE, DIMENSION(:,:)  :: QDSW                                                         !SR 12/19/2022 Output
   !REAL,                  ALLOCATABLE, DIMENSION(:)    :: EWD, TAVGW                   ! cb 1/16/13
   real,                  allocatable, dimension(:)    :: ewd
-  REAL(R8),              ALLOCATABLE, DIMENSION(:,:)  :: QSTR,   QSW
+  REAL(R8),              ALLOCATABLE, DIMENSION(:,:)  :: QSTR, QSTRSAV,  QSW     ! SR 10/1/2023
   !REAL,                  ALLOCATABLE, DIMENSION(:,:)  :: ESTR,   WSTR, TAVG            ! SW Selective 7/30/09
   real,                  allocatable, dimension(:,:)  :: estr,   wstr                  ! cb 1/16/13
   real(r8),              allocatable, dimension(:,:)  :: tavg                  ! cb 1/16/13
@@ -396,7 +400,7 @@ MODULE GDAYC
 END MODULE GDAYC
 MODULE SCREENC
   USE PREC
-  REAL                                           :: JDAY,   DLTS1,  JDMIN,  MINDLT, DLTAV,  ELTMJD
+  REAL(R8)                                       :: JDAY,   DLTS1,  JDMIN,  MINDLT, DLTAV,  ELTMJD
   REAL,              ALLOCATABLE, DIMENSION(:)   :: ZMIN,   CMIN,   CMAX,   HYMIN,  HYMAX,  CDMIN,  CDMAX
   INTEGER                                        :: ILOC,   KLOC,   IMIN,   KMIN,   NIT,    NV,     JTT,     JWW
   INTEGER,           ALLOCATABLE, DIMENSION(:)   :: IZMIN
@@ -435,6 +439,8 @@ MODULE LOGICC
   LOGICAL,           ALLOCATABLE, DIMENSION(:)   :: INTERP_GATE     ! cb 8/13/2010
   LOGICAL,           ALLOCATABLE, DIMENSION(:,:) :: PRINT_DERIVED,      PRINT_HYDRO,      PRINT_CONST,      PRINT_EPIPHYTON
   LOGICAL,           ALLOCATABLE, DIMENSION(:,:) :: POINT_SINK,         INTERNAL_WEIR,    INTERP_OUTFLOW
+  LOGICAL,       ALLOCATABLE, DIMENSION(:)       :: HEAD_FLOW
+  LOGICAL,       ALLOCATABLE, DIMENSION(:)       :: UP_HEAD
 END MODULE LOGICC
 MODULE SHADEC
   integer, PARAMETER :: IANG=18
@@ -456,12 +462,14 @@ MODULE EDDY
   REAL(R8),          ALLOCATABLE, DIMENSION (:,:)   :: AZT, DZT
   REAL(R8),          ALLOCATABLE, DIMENSION(:)      :: USTARBTKE, E
   REAL(R8),          ALLOCATABLE, DIMENSION(:)      :: EROUGH, ARODI, TKELATPRDCONST, STRICK
-  INTEGER,           ALLOCATABLE, DIMENSION(:)      :: FIRSTI, LASTI, WALLPNT, TKEBC
+  !INTEGER,           ALLOCATABLE, DIMENSION(:)      :: FIRSTI, LASTI, WALLPNT, TKEBC
+  INTEGER,           ALLOCATABLE, DIMENSION(:)      :: WALLPNT, TKEBC
   LOGICAL,           ALLOCATABLE, DIMENSION(:)      :: STRICKON, TKELATPRD
 END MODULE EDDY
 MODULE MACROPHYTEC
-  REAL,    POINTER,               DIMENSION(:,:)     :: NH4MR,  NH4MG,  LDOMMAC, RPOMMAC, LPOMMAC, DOMP, DOMR, TICMC
-  REAL,    POINTER,               DIMENSION(:,:)     :: PO4MR,  PO4MG
+USE PREC
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: NH4MR,  NH4MG,  LDOMMAC, RPOMMAC, LPOMMAC, DOMP, DOMR, TICMC
+  REAL(R8),    POINTER,               DIMENSION(:,:)     :: PO4MR,  PO4MG
   REAL,              ALLOCATABLE, DIMENSION(:)       :: MG,     MR,     MM, MMAX,   MBMP
   REAL,              ALLOCATABLE, DIMENSION(:)       :: MT1,    MT2,    MT3,    MT4,    MK1,    MK2,    MK3,    MK4
   REAL,              ALLOCATABLE, DIMENSION(:)       :: MP,     MN,     MC
@@ -481,7 +489,7 @@ MODULE MACROPHYTEC
   REAL,              ALLOCATABLE, DIMENSION(:,:,:,:) :: MACRC,  MACRM
   REAL,              ALLOCATABLE, DIMENSION(:,:,:,:) :: MLLIM
   REAL,              ALLOCATABLE, DIMENSION(:,:,:,:) :: MACSS
-  REAL,              ALLOCATABLE, DIMENSION(:,:,:,:) :: SMACRC, SMACRM
+ ! REAL,              ALLOCATABLE, DIMENSION(:,:,:,:) :: SMACRC, SMACRM
   LOGICAL,           ALLOCATABLE, DIMENSION(:)       :: KTICOL
   LOGICAL,           ALLOCATABLE, DIMENSION(:,:)     :: PRINT_MACROPHYTE, MACROPHYTE_CALC
   LOGICAL                                            :: MACROPHYTE_ON
@@ -493,8 +501,6 @@ MODULE POROSITYC
     REAL,              ALLOCATABLE, DIMENSION(:)     :: SAREA, VOLKTI
     REAL,              ALLOCATABLE, DIMENSION(:,:)   :: POR,   VOLI,   VSTEMKT
     REAL,              ALLOCATABLE, DIMENSION(:,:,:) :: VSTEM
-    LOGICAL,       ALLOCATABLE, DIMENSION(:)         :: HEAD_FLOW
-    LOGICAL,       ALLOCATABLE, DIMENSION(:)         :: UP_HEAD
 END MODULE POROSITYC
 MODULE ZOOPLANKTONC
   USE PREC
@@ -561,10 +567,10 @@ Module MAIN
   INTEGER       :: DOC_DER,POC_DER,TOC_DER,DON_DER,PON_DER,TON_DER,TKN_DER,TN_DER,NH3_DER,DOP_DER,POP_DER,TOP_DER,TP_DER,APR_DER
   INTEGER       :: CHLA_DER,ATOT_DER,O2DG_DER,TDG_DER,TURB_DER,TOTSS_DER,TISS_DER,CBODU_DER,PH_DER,CO2_DER,HCO3_DER,CO3_DER,SECCHI_DER
   INTEGER       :: NBODE, NAS, NAE, NDO, NTIC, NALK, NTRT, NWDT
-  INTEGER       :: NDT, JS, JP, JG,JT, JH, NTSR, NIWDO, NRSO,JD
+  INTEGER       :: NDT, JS, JP, JG,JT, JH, NTSR, NIWDO, NRSO, JD
   INTEGER       :: NBODCS, NBODCE, NBODPS, NBODPE, NBODNS, NBODNE, IBOD, JCB       ! cb 6/6/10
   INTEGER       :: JF,JA,JM,JE,JJZ,K,L3,L1,L2,NTAC,NDSP,NTACMX,NTACMN,JFILE,M
-  INTEGER       :: KBP,JWR,JJJB,JDAYNX,NIT1,JWD,L,IUT,IDT,KTIP
+  INTEGER       :: KBP,JWR,JJJB,JDAYNX,NIT1,JWD,L,IUT,IDT    !,KTIP - NOT NEEDED SW 7/8/2024
   INTEGER       :: INCRIS,IE,II,NDLT,NRS,INCR,IS,JAC
   REAL          :: JDAYTS, JDAY1, TMSTRT, TMEND,HMAX, DLXMAX,CELRTY,NXTVD,TTIME
   REAL(R8)      :: DLMR, TICE                        ! SW 4/19/10
@@ -582,6 +588,7 @@ Module MAIN
   INTEGER       :: VSF,    SIF, JG_AGE  ! SR 7/27/2017
   INTEGER       :: JSG,    NNSG                         ! 1/16/13
   LOGICAL       :: ADD_LAYER,      SUB_LAYER,          WARNING_OPEN,    ERROR_OPEN,      VOLUME_WARNING, SURFACE_WARNING
+  LOGICAL       :: PKSD_INPUT_WARNING                                                                                  !SR 11/09/19
   LOGICAL       :: END_RUN,        BRANCH_FOUND,       NEW_PAGE,        UPDATE_KINETICS, UPDATE_RATES
   LOGICAL       :: WEIR_CALC,      DERIVED_CALC,       RESTART_IN,      RESTART_OUT
   LOGICAL       :: SPILLWAY,       PUMPS, MWB_EXIST                  ! SW 12/2/2019
@@ -594,7 +601,8 @@ Module MAIN
   CHARACTER(3)  :: GDCH
   CHARACTER(8)  :: WLC,FLOWBALC,NPBALC,SED_DIAG
   CHARACTER(8)  :: RSOC,   RSIC,   CCC,   LIMC,   WDOC,   TSRC,   EXT, SELECTC, CLOSEC, HABTATC,ENVIRPC, AERATEC, INITUWL, DLTINTER      ! SW 7/31/09; 8/24/09
-  CHARACTER(10) :: BLANK='          ',  BLANK1='    -99.00', SEDCH,   SEDPCH,   SEDNCH,   SEDCCH 
+  CHARACTER(10) :: BLANK='          ', SEDCH,   SEDPCH,   SEDNCH,   SEDCCH 
+  CHARACTER(12) :: BLANK1='      -99.00'       ! SR 10/1/2023 
   CHARACTER(72) :: WDOFN,  RSOFN,  TSRFN, SEGNUM, LINE, SEGNUM2, TSRFN1
   LOGICAL       :: RETLOG, STANDING_BIOMASS_DECAY, PHBUFF_EXIST, WATER_AGE_ACTIVE ! SW 5/26/15  SR 7/27/2017
   LOGICAL       :: DYNPIPEADJUST            ! SW 2/18/2020
@@ -687,7 +695,7 @@ Module MAIN
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: EXC,    EXIC
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: GASGTC, GASSPC, ATM_DEPOSITIONC,ATM_DEPOSITION_INTERPOLATION
   CHARACTER(10),  ALLOCATABLE, DIMENSION(:)    :: CWDOC,  CDWDOC
-  CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: ICEC,   SEDCc,  SEDPRC, SNPC,   SCRC,   SPRC,   PRFC,DYNSEDK
+  CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: ICEC,   SEDCC,  SEDPRC, SNPC,   SCRC,   SPRC,   PRFC,DYNSEDK
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: SEDCc1,  SEDPRC1,SEDCc2,  SEDPRC2    ! Amaila
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: RHEVC,  VPLC,   CPLC,   AZSLC,  FETCHC
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: DTRC,   SROC,   KFAC,   CDAC
@@ -702,7 +710,7 @@ Module MAIN
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: SLTRC,  SLHTC,  FRICC
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:)     :: QINIC,  TRIC,   DTRIC,  WDIC,   HDIC,   METIC   !, KFNAME2
   CHARACTER(14),  ALLOCATABLE, DIMENSION(:)    :: KFNAME2
-  CHARACTER(10), ALLOCATABLE, DIMENSION(:)     :: C2CH,   CDCH,   EPCH,   macch, KFCH, APCH, ANCH, ALCH  ! SW 10/20/15
+  CHARACTER(14), ALLOCATABLE, DIMENSION(:)     :: C2CH,   CDCH,   EPCH,   macch, KFCH, APCH, ANCH, ALCH, ENCH, ELCH, EDCH  
   CHARACTER(45), ALLOCATABLE, DIMENSION(:)     :: KFNAME
   CHARACTER(72), ALLOCATABLE, DIMENSION(:)     :: SNPFN,  PRFFN,  VPLFN,  CPLFN,  SPRFN,  FLXFN,  FLXFN2, BTHFN,  VPRFN,  LPRFN, SPRVFN, ATMDEPFN   ! SW 9/28/2018
   CHARACTER(8),  ALLOCATABLE, DIMENSION(:,:)   :: SINKC,  SINKCT
@@ -722,7 +730,7 @@ Module MAIN
   CHARACTER(8),ALLOCATABLE, DIMENSION(:):: GTTYP                        ! systdg
 !  CHARACTER(72), PARAMETER              :: CONTDGFN='w2_systdg.npt'   ! systdg
 ! Data declarations
-  REAL(R8)  :: RK1=2.12D0, RL1=333507.0D0, RIMT=0.0D0, RHOA=1.25D0, RHOI=916.0D0, VTOL=1.0D3, CP=4186.0D0, THRKTI=0.10D0
+  REAL(R8)  :: RK1=2.12D0, RL1=333507.0D0, RIMT=0.0D0, RHOA=1.25D0, RHOI=916.0D0, VTOL=1.0D3, CP=4186.0D0, THRKTI=0.10D0  ! RL1: Latent heat of melting for ice: 333507 J/kg, CP=4186 J/kg/oC; RHOI (density of ice)=916 kg/m3
   LOGICAL   :: LAKE_RIVER_CONTOURC       ! SW 2/27/2020
   CHARACTER(2) :: LAKE_RIVER_CONTOUR_ON
   CHARACTER(80):: FILE_LAKE_CONTOUR_T(20),FILE_LAKE_CONTOUR_DO(20),FILE_RIVER_CONTOUR_T(20),FILE_RIVER_CONTOUR_DO(20)
@@ -757,6 +765,7 @@ Module CEMAVars
     Integer(4), Allocatable, Dimension(:) :: ConsolidationType, ConstPoreWtrRate, NumCEMAPWInst
     Integer(4), Allocatable, Dimension(:) :: ConsRegSegSt, ConsRegSegEn, ConsolidRegnNum
     Character(256)                        :: ConsolidRateRegnFil
+    Character(180)                        :: SedFlxFolder
     Real(R8), allocatable, Dimension(:)   :: ConsolidRateTemp													  
     Real(R8), Allocatable, Dimension(:)   :: BedElevation, BedElevationLayer, BedPorosity
     Real(R8), Allocatable, Dimension(:,:) :: CellArea
@@ -826,8 +835,12 @@ Module CEMAVars
     Logical, Allocatable, Dimension(:) :: CrackOpen
     Logical, Allocatable, Dimension(:,:) :: FirstBubblesRelease, BubblesAtSurface
     
+    real(R8), target, allocatable, dimension(:,:,:) :: C2SF     ! sediment diagenesis state variables
+    real(R8),         allocatable, dimension(:,:,:) :: KFSF     ! sediment diagenesis kinetic flux
+    real(R8),         allocatable, dimension(:,:)   :: KFSFAV  
+    real(R8),         allocatable, dimension(:,:)   :: sdinc1,sdinn1,sdinp1
     
-    Integer(4) :: CEMAFilN, NumConsolidRegns, CEMASedimentType
+    Integer(4) :: CEMAFilN, NumConsolidRegns, CEMASedimentType, TempSedCalc
     Integer(4) :: CEMASNPOutFilN=2411, CEMATSR1OutFilN=2412, SegNumI, LayerNum
     Integer(4) :: CEMABtmLayFilN=2414, TempCntr1
     Integer(4) :: CEMASedFlxFilN1=2415, CEMASedFlxFilN2=2416, CEMASedFlxFilN3=2417, CEMALogFilN=2418, CEMASedFlxFilN4=2419
@@ -837,9 +850,9 @@ Module CEMAVars
     Integer(4) :: CEMASedFlxFilN23=3494,CEMASedFlxFilN24=3495,CEMASedFlxFilN25=3496,CEMASedFlxFilN26=3497,CEMASedFlxFilN27=3498,CEMASedFlxFilN28=3499
     Integer(4) :: CEMASedFlxFilN29=3500,CEMASedFlxFilN30=3501,CEMASedFlxFilN31=3502
     Integer(4) :: CEMASedFlxFilN32=3503,CEMASedFlxFilN33=3504,CEMASedFlxFilN34=3505
-    Integer(4) :: CEMASedFlxFilN35=3506,CEMASedFlxFilN36=3507,CEMASedFlxFilN37=3508   
+    Integer(4) :: CEMASedFlxFilN35=3506,CEMASedFlxFilN36=3507,CEMASedFlxFilN37=3508,CEMASedFlxFilN38=3509,CEMASedFlxFilN39=3510,CEMASedFlxFilN40=3511,CEMASedFlxFilN41=3512,CEMASedFlxFilN42=3513,CEMASedFlxFilN43=3514   
     Integer(4) :: CEMAOutFilN1=2426, CEMAOutFilN2=2429, CEMAOutFilN3=2435, CEMAOutFilN4=2437,CEMAOutFilBub=2440
-    Integer(4) :: CEMAOutFilN5=2438, CEMAOutFilN6=2439
+    !Integer(4) :: CEMAOutFilN5=2438, CEMAOutFilN6=2439
     Integer(4) :: NumRegnsSedimentDiagenesis, NumRegnsSedimentBedComposition
     Integer(4) :: NumFFTActivePrds, FFTActPrd, NumBubRelArr, NumGas=4
     Real(R8) :: LayerAddThkFrac, BedElevationInit, BedPorosityInit, CEMASedimentDensity
@@ -852,7 +865,7 @@ Module CEMAVars
     Real(R8) :: GasDiff_Sed, CalibParam_R1, YoungModulus, CritStressIF
     Real(R8) :: BubbRelScale, CrackCloseFraction, MaxBubbRad, BubbRelFraction, BubbAccFraction
     Real(R8) :: BubbRelFractionAtm, BubbWatGasExchRate
-    Real(R8) :: CEMATurbulenceScaling
+    Real(R8) :: CEMATurbulenceScaling,JDAY_INIT,SD_TC
     Real(R8) :: IceThicknessChange  ! cb 2/5/13
     Real(R8) :: TAUCRPOM, crshields, spgrav_POM, dia_POM,  GasReleaseCH4  !,GasReleaseCO2   ! SW 10/10/2017   ! SW 10/19/2017
     REAL(R8) :: NXTSEDIAG,SEDIAGFREQ   ! SW 5/25/2017  
@@ -882,3 +895,13 @@ Module Selective1TDGtarget
   REAL,    ALLOCATABLE, DIMENSION(:)           :: SPMINFRAC, PHMAXFLOW
   CHARACTER(8)                                 :: tsyearly, tsdynsel,dyupdate
 End Module Selective1TDGtarget
+    
+Module AlgaeReduceGasTransfer    
+LOGICAL :: REDUCE_GAS_TRANSFER
+REAL :: KHS_ALG
+CHARACTER(2) :: ICHAR2
+INTEGER :: ALGRED=24456,IOUTFREQ,IMM
+INTEGER, ALLOCATABLE, DIMENSION(:) :: I_ALG
+
+End Module AlgaeReduceGasTransfer
+    

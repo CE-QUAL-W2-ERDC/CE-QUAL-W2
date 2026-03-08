@@ -4,7 +4,7 @@
 !***********************************************************************************************************************************
 
 SUBROUTINE HEAT_EXCHANGE
-  USE GLOBAL; USE GDAYC; USE SURFHE; USE TVDC; USE SHADEC; USE PREC
+  USE GLOBAL; USE GDAYC; USE SURFHE; USE TVDC; USE SHADEC; USE PREC; USE MetFileRegion
   IMPLICIT NONE
 
 ! Type declaration
@@ -37,11 +37,20 @@ ENTRY SHORT_WAVE_RADIATION (JDAY)
   SINAL    =  SIN(LAT(JW)*.0174533)*SIN(DECL(JW))+COS(LAT(JW)*.0174533)*COS(DECL(JW))*COS(HH(JW))
   A00(JW)  =  57.2957795*ASIN(SINAL)
   A0       =  A00(JW)
+  if(.not.Met_Regions)then
   IF (A0 > 0.0) THEN
     SRON(JW) = (1.0-0.0065*CLOUD(JW)**2)*24.0*(2.044*A0+0.1296*A0**2-1.941E-3*A0**3+7.591E-6*A0**4)*BTU_FT2_DAY_TO_W_M2
   ELSE
     SRON(JW) = 0.0
   END IF
+  else
+  IF (A0 > 0.0) THEN
+    SRON(NMet) = (1.0-0.0065*CLOUD(NMet)**2)*24.0*(2.044*A0+0.1296*A0**2-1.941E-3*A0**3+7.591E-6*A0**4)*BTU_FT2_DAY_TO_W_M2
+  ELSE
+    SRON(NMet) = 0.0
+  END IF
+  endif
+  
 RETURN
 
 !***********************************************************************************************************************************
@@ -51,10 +60,16 @@ RETURN
 ENTRY EQUILIBRIUM_TEMPERATURE
 
 ! British units
-
+  if(.not.Met_Regions)then
   TDEW_F   = DEG_F(TDEW(JW))
   TAIR_F   = DEG_F(TAIR(JW))
   SRO_BR   = SRON(JW)*W_M2_TO_BTU_FT2_DAY*SHADE(I)
+  else
+  TDEW_F   = DEG_F(TDEW(NMet))
+  TAIR_F   = DEG_F(TAIR(NMet))
+  SRO_BR   = SRON(NMet)*W_M2_TO_BTU_FT2_DAY*SHADE(I)   
+  endif
+  
   !WIND_MPH = WIND(JW)*WSC(I)*MPS_TO_MPH
   !WIND2M   = WIND_MPH*DLOG(2.0D0/Z0(JW))/DLOG(WINDH(JW)/Z0(JW))+NONZERO     ! SW 11/28/07  old version z0=0.003
   WIND2M=WIND2(I)*MPS_TO_MPH    ! ALREADY COMPUTED IN w2 MAIN PROGRAM
@@ -98,7 +113,12 @@ ENTRY SURFACE_TERMS (TSUR)
 
 !  EA = EXP(2.3026*(9.5*TDEW(JW)/(TDEW(JW)+265.5)+0.6609))         ! SW 6/10/2011
 !  IF (TDEW(JW) > 0.0) EA = EXP(2.3026*(7.5*TDEW(JW)/(TDEW(JW)+237.3)+0.6609))
+IF(.NOT.Met_regions)then
   EA = DEXP(2.3026D0*(7.5D0*TDEW(JW)/(TDEW(JW)+237.3D0)+0.6609D0))
+else
+  EA = DEXP(2.3026D0*(7.5D0*TDEW(NMet)/(TDEW(NMet)+237.3D0)+0.6609D0))
+endif
+
 
 ! Partial water vapor pressure at the water surface
 
@@ -111,7 +131,11 @@ ENTRY SURFACE_TERMS (TSUR)
 ! Wind function
 
   IF (RH_EVAP(JW)) THEN
+    if(.not.Met_Regions)then
     TAIRV = (TAIR(JW)+273.0D0)/(1.0D0-0.378D0*EA/760.0D0)
+    else
+    TAIRV = (TAIR(NMet)+273.0D0)/(1.0D0-0.378D0*EA/760.0D0)
+    endif
     DTV   = (TSUR+273.0D0)/(1.0D0-0.378D0*ES/760.0D0)-TAIRV
     DTVL  =  0.0084D0*WIND2(I)**3
     IF (DTV < DTVL) DTV = DTVL
@@ -126,8 +150,12 @@ ENTRY SURFACE_TERMS (TSUR)
   !IF(RE(I) < 0.0)RE(I)=0.0     ! SW 6/22/2016  SHOULD WE USE THIS AS AN ANALOG FOR CONDENSATION WHEN LESS THAN 0? TVA(1972) SUGGESTS YOU CAN - SEE SECTION 4 AND 5 but Ryan, Harleman suggest setting RE=0 if less than zero since the condensation coefficients are unknown...
 
 ! Conductive flux
-
+ if(.not.Met_Regions)then
   RC(I) = FW*BOWEN_CONSTANT*(TSUR-TAIR(JW))
+ else
+  RC(I) = FW*BOWEN_CONSTANT*(TSUR-TAIR(NMet))  
+ endif
+ 
 
 ! Back radiation flux
 

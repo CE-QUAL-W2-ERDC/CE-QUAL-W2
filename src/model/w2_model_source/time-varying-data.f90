@@ -8,6 +8,7 @@ SUBROUTINE TIME_VARYING_DATA
   USE KINETIC, ONLY:EXH2O; USE SHADEC; USE MAIN, ONLY: PUMPS, SEGNUM, WBSEG, N2BND, DOBND, DGPBND,NDO, NDGP, ITR, EA, SYSTDG, NN2, TMEND, ATM_DEPOSITION, ATMDEPFN, ATM_DEP_LOADING, ATMDCN, NACATD, ATM_DEPOSITION_INTERPOLATION, GASGTC, GASSPC ! systdg ADD WBSEG, N2BND, DOBND, NDO, NGN2, ITR, EA, SYSTDG
   USE modSYSTDG, ONLY: TWETSC, TWEFN, TWE_TS; USE TDGAS                                     ! systdg
   USE IFPORT     ! for SLEEPQQ and SYSTEMQQ commands                                       !SR 11/28/19
+  USE MetFileRegion
   IMPLICIT NONE
 
 ! Type declaration
@@ -15,7 +16,7 @@ SUBROUTINE TIME_VARYING_DATA
   CHARACTER(1)                           :: INFORMAT
   CHARACTER(2)                           :: INFORMAT2
   REAL                                   :: NXQGT2                  
-  REAL                                   :: NXQWD1, NXQWD2, NXQGT,  NXTVD, NXQPT
+  REAL                                   :: NXQWD1, NXQWD2, NXQGT,  NXTVD, NXQPT, NXZGT
   REAL                                   :: NXWSC
   REAL(R8)                               :: RATIO,QRATIO,TRATIO,CRATIO,HRATIO
   REAL(R8),ALLOCATABLE, DIMENSION(:)     :: QDTRO,  TDTRO,  ELUHO,  ELDHO,  QWDO,   QTRO,   TTRO,   QINO,   TINO
@@ -23,7 +24,7 @@ SUBROUTINE TIME_VARYING_DATA
   REAL,    ALLOCATABLE, DIMENSION(:)     :: NXEXT1, NXEXT2, EXTNX,  EXTO, NXATMD,NXATMD2
   REAL,    ALLOCATABLE, DIMENSION(:)     :: TAIRO,  TDEWO,  PHIO,   WINDO,  SROO,   CLOUDO, PALT_JWO                                   ! systdg - PALT_JWO
   REAL(R8),ALLOCATABLE, DIMENSION(:)     :: QDTRNX, TDTRNX, PRNX,   TPRNX,  ELUHNX, ELDHNX, QWDNX,  QTRNX,  TTRNX,  QINNX,  TINNX
-  REAL,    ALLOCATABLE, DIMENSION(:)     :: NXQTR1, NXTTR1, NXCTR1, NXQIN1, NXTIN1, NXCIN1, NXQDT1, NXTDT1, NXCDT1, NXDYNS
+  REAL,    ALLOCATABLE, DIMENSION(:)     :: NXQTR1, NXTTR1, NXCTR1, NXQIN1, NXTIN1, NXCIN1, NXQDT1, NXTDT1, NXCDT1, NXDYNS, NXEGT
   REAL,    ALLOCATABLE, DIMENSION(:)     :: NXPR1,  NXTPR1, NXCPR1, NXEUH1, NXTUH1, NXCUH1, NXEDH1, NXTDH1, NXCDH1, NXQOT1, NXMET1
   REAL,    ALLOCATABLE, DIMENSION(:)     :: NXQTR2, NXTTR2, NXCTR2, NXQIN2, NXTIN2, NXCIN2, NXQDT2, NXTDT2, NXCDT2, NXSPDO, NXGTDO
   REAL,    ALLOCATABLE, DIMENSION(:)     :: NXPR2,  NXTPR2, NXCPR2, NXEUH2, NXTUH2, NXCUH2, NXEDH2, NXTDH2, NXCDH2, NXQOT2, NXMET2
@@ -32,13 +33,13 @@ SUBROUTINE TIME_VARYING_DATA
   REAL(R8),ALLOCATABLE, DIMENSION(:,:)   :: CTRO,   CINO,   QOUTO,  CDTRO,  TUHO,   TDHO,   QSTRO
   REAL(R8),ALLOCATABLE, DIMENSION(:,:)   :: CTRNX,  CINNX,  QOUTNX, CDTRNX, CPRNX,  TUHNX,  TDHNX,  QSTRNX
   REAL,    ALLOCATABLE, DIMENSION(:,:,:) :: CUHO,   CDHO,   CUHNX,  CDHNX
-  INTEGER                                :: WDQ,    GTQ,    WSH,    SHD, PIPED, IOPENPIPE,L,NJS                                    
+  INTEGER                                :: WDQ,    GTQ,    WSH,    SHD, PIPED, IOPENPIPE,L,NJS, GTZ, NJJ                                    
   REAL(R8)                               :: TWERATIO, NXTWE1, NXTWE2, TWE_TSNX, TWE_TSO  ! systdg - TWE
   INTEGER                                :: TWEFNNO                                      ! systdg - TWE
   LOGICAL                                :: TWEF                                         ! systdg - TWE
   REAL(R8), ALLOCATABLE, DIMENSION(:)    :: DO_SAT, N2_SAT, DO_SATJ, N2_SATJ, DO_SATD, N2_SATD, DO_SATP, N2_SATP                  ! systdg - DO_SATJ, N2_SATJ, DO_SATD, N2_SATD, DO_SATP, N2_SATP 
   INTEGER                                :: NPT,J,JT,JAC,JS,K,JG,JWD
-  INTEGER, ALLOCATABLE, DIMENSION(:)     :: TRQ,    TRT,    TRC,    INQ,    DTQ,    PRE,    UHE,    DHE,    INFT,   DTT,PUMPD, JJS, ATMDEP, FGASSP, FGASGT
+  INTEGER, ALLOCATABLE, DIMENSION(:)     :: TRQ,    TRT,    TRC,    INQ,    DTQ,    PRE,    UHE,    DHE,    INFT,   DTT,PUMPD, JJS, ATMDEP, FGASSP, FGASGT, JJG
   INTEGER, ALLOCATABLE, DIMENSION(:)     :: PRT,    UHT,    DHT,    INC,    DTC,    PRC,    UHC,    DHC,    OTQ,    MET,    EXT, ODYNS,DYNPUMPF
   LOGICAL, ALLOCATABLE, DIMENSION(:)     :: INFLOW_CONST, TRIB_CONST, DTRIB_CONST, PRECIP_CONST,OTQF, TRCF, DTCF, INCF, PRCF, METF,DYNEF, TRQF, TRTF, DTTF, DTQF, INQF, INTF, PRQF, PRTF,EXTF
   LOGICAL                                :: WDQF,WSHF, GATEF,ATMDEPCSV   ! SW 9/26/2017
@@ -82,22 +83,34 @@ SUBROUTINE TIME_VARYING_DATA
   !
   ALLOCATE (NXQTR1(NTR), NXTTR1(NTR), NXCTR1(NTR), NXQIN1(NBR), NXTIN1(NBR), NXCIN1(NBR), NXQDT1(NBR), NXTDT1(NBR), NXCDT1(NBR))
   ALLOCATE (NXPR1(NBR),  NXTPR1(NBR), NXCPR1(NBR), NXEUH1(NBR), NXTUH1(NBR), NXCUH1(NBR), NXEDH1(NBR), NXTDH1(NBR), NXCDH1(NBR))
-  ALLOCATE (NXQOT1(NBR), NXMET1(NWB), NXQTR2(NTR), NXTTR2(NTR), NXCTR2(NTR), NXQIN2(NBR), NXTIN2(NBR), NXCIN2(NBR), NXQDT2(NBR))
+  ALLOCATE (NXQOT1(NBR), NXQTR2(NTR), NXTTR2(NTR), NXCTR2(NTR), NXQIN2(NBR), NXTIN2(NBR), NXCIN2(NBR), NXQDT2(NBR))
   ALLOCATE (NXTDT2(NBR), NXCDT2(NBR), NXPR2(NBR),  NXTPR2(NBR), NXCPR2(NBR), NXEUH2(NBR), NXTUH2(NBR), NXCUH2(NBR), NXEDH2(NBR))
-  ALLOCATE (NXTDH2(NBR), NXCDH2(NBR), NXQOT2(NBR), NXMET2(NWB),DYNPUMPF(NPU))
-  ALLOCATE (WSCNX(IMX), PRCF(NBR), METF(NWB), ODYNS(NBR),NXDYNS(NBR),NXESTRT(NST,NBR), PRTF(NBR), PRQF(NBR),EXTF(NWB))
+  ALLOCATE (NXTDH2(NBR), NXCDH2(NBR), NXQOT2(NBR), DYNPUMPF(NPU))
+  ALLOCATE (WSCNX(IMX), PRCF(NBR), ODYNS(NBR),NXDYNS(NBR),NXESTRT(NST,NBR), PRTF(NBR), PRQF(NBR),EXTF(NWB))
   ALLOCATE (QDTRO(NBR),  TDTRO(NBR),  ELUHO(NBR),  ELDHO(NBR),  QWDO(NWD),   QTRO(NTR),   TTRO(NTR),   QINO(NBR),   TINO(NBR))
   ALLOCATE (QDTRNX(NBR), TDTRNX(NBR), PRNX(NBR),   TPRNX(NBR),  ELUHNX(NBR), ELDHNX(NBR), QWDNX(NWD),  QTRNX(NTR),  TTRNX(NTR))
-  ALLOCATE (QINNX(NBR),  TINNX(NBR),  SROO(NWB),   TAIRO(NWB),  TDEWO(NWB),  CLOUDO(NWB), PHIO(NWB),   WINDO(NWB),  TAIRNX(NWB), PALT_JWO(NWB), PALT_JWNX(NWB))     ! systdg - time series PALT
-  ALLOCATE (TDEWNX(NWB), CLOUDNX(NWB),PHINX(NWB),  WINDNX(NWB), SRONX(NWB),  BGTNX(NGT), BPNX(NPI))
+  
+    IF(Met_regions.AND. NMetFileRegions > NWB)then        ! SW 12/13/2023
+      ALLOCATE (QINNX(NBR),  TINNX(NBR),  METF(NMetFileRegions), SROO(NMetFileRegions),   TAIRO(NMetFileRegions),  TDEWO(NMetFileRegions),  CLOUDO(NMetFileRegions), PHIO(NMetFileRegions),   WINDO(NMetFileRegions),  TAIRNX(NMetFileRegions), PALT_JWO(NMetFileRegions), PALT_JWNX(NMetFileRegions))     ! systdg - time series PALT
+      ALLOCATE (TDEWNX(NMetFileRegions), CLOUDNX(NMetFileRegions),PHINX(NMetFileRegions),  WINDNX(NMetFileRegions), SRONX(NMetFileRegions),  BGTNX(NGT), BPNX(NPI))
+      Allocate(MET(NMetFileRegions),NXMET2(NMetFileRegions), NXMET1(NMetFileRegions))
+    ELSE
+      ALLOCATE (QINNX(NBR),  TINNX(NBR),  METF(NWB), SROO(NWB),   TAIRO(NWB),  TDEWO(NWB),  CLOUDO(NWB), PHIO(NWB),   WINDO(NWB),  TAIRNX(NWB), PALT_JWO(NWB), PALT_JWNX(NWB))     ! systdg - time series PALT
+      ALLOCATE (TDEWNX(NWB), CLOUDNX(NWB),PHINX(NWB),  WINDNX(NWB), SRONX(NWB),  BGTNX(NGT), BPNX(NPI))
+      Allocate(MET(NWB),NXMET2(NWB), NXMET1(NWB))
+    ENDIF
+
+  !ALLOCATE (QINNX(NBR),  TINNX(NBR),  SROO(NWB),   TAIRO(NWB),  TDEWO(NWB),  CLOUDO(NWB), PHIO(NWB),   WINDO(NWB),  TAIRNX(NWB), PALT_JWO(NWB), PALT_JWNX(NWB))     ! systdg - time series PALT
+  !ALLOCATE (TDEWNX(NWB), CLOUDNX(NWB),PHINX(NWB),  WINDNX(NWB), SRONX(NWB),  BGTNX(NGT), BPNX(NPI))
   ALLOCATE (TRQ(NTR),    TRT(NTR),    TRC(NTR),    INQ(NBR),    DTQ(NBR),    PRE(NBR),    UHE(NBR),    DHE(NBR),    INFT(NBR))
   ALLOCATE (DTT(NBR),    PRT(NBR),    UHT(NBR),    DHT(NBR),    INC(NBR),    DTC(NBR),    PRC(NBR),    UHC(NBR),    DHC(NBR))
-  ALLOCATE (OTQ(NBR),    MET(NWB),    EXT(NWB), NXATMDEP(NWB))
+  ALLOCATE (OTQ(NBR),    EXT(NWB), NXATMDEP(NWB))
+  !ALLOCATE (OTQ(NBR),    MET(NWB),    EXT(NWB), NXATMDEP(NWB))
   ALLOCATE (NXEXT1(NWB), NXEXT2(NWB), EXTNX(NWB),  EXTO(NWB))
   ALLOCATE (CTRO(NCT,NTR),   CINO(NCT,NBR),  QOUTO(KMX,NBR),  CDTRO(NCT,NBR),  TUHO(KMX,NBR),  TDHO(KMX,NBR),  QSTRO(NST,NBR))
   ALLOCATE (CTRNX(NCT,NTR),  CINNX(NCT,NBR), QOUTNX(KMX,NBR), CDTRNX(NCT,NBR), CPRNX(NCT,NBR), TUHNX(KMX,NBR), TDHNX(KMX,NBR))
   ALLOCATE (QSTRNX(NST,NBR), PUMPD(NPU), NXPUMP(NPU),EPU2(NPU),EONPU2(NPU),EOFFPU2(NPU),QPU2(NPU),DYNEF(NBR))
-  ALLOCATE (CUHO(KMX,NCT,NBR), CDHO(KMX,NCT,NBR), CUHNX(KMX,NCT,NBR), CDHNX(KMX,NCT,NBR),JJS(NST))
+  ALLOCATE (CUHO(KMX,NCT,NBR), CDHO(KMX,NCT,NBR), CUHNX(KMX,NCT,NBR), CDHNX(KMX,NCT,NBR),JJS(NST),JJG(NGT),NXEGT(NGT))
   ALLOCATE (INFLOW_CONST(NBR), TRIB_CONST(NTR),   DTRIB_CONST(NBR),   PRECIP_CONST(NBR), OTQF(NBR), TRCF(NTR), DTCF(NBR), INCF(NBR),TRQF(NTR), TRTF(NTR), DTTF(NBR), DTQF(NBR), INQF(NBR), INTF(NBR))
   ALLOCATE (EUHF(NBR), TUHF(NBR), CUHF(NBR), EDHF(NBR), TDHF(NBR), CDHF(NBR))
   ALLOCATE (ATM_DEP_LOADINGNX(NCT,NWB),ATMDEP(NWB),NXATMD(NWB),NXATMD2(NWB),ATM_DEP_LOADING0(NCT,NWB))
@@ -170,7 +183,36 @@ SUBROUTINE TIME_VARYING_DATA
   WSC = WSCNX
   READ (WSH,'(10F8.0:/(8X,9F8.0))')    NXWSC,(WSCNX(I),I=1,IMX)
   ENDIF
-  DO JW=1,NWB
+  
+     DO N=1,NSP              ! SW 1/18/2022
+        IF(GASSPC(N)=='      ON' .AND.  EQSP(N)==4 .AND. BGASSP(N)==1)THEN
+         FGASSP(N)=NPT; NPT=NPT+1
+         WRITE (SEGNUM,'(I0)') N 
+         SEGNUM = ADJUSTL(SEGNUM)  
+         L = LEN_TRIM(SEGNUM) 
+         FILE_GAS_SP(N)='w2_sp'//SEGNUM(1:L)//'DO.csv'
+         OPEN (FGASSP(N), FILE=FILE_GAS_SP(N),STATUS='OLD')
+         READ(FGASSP(N),*);READ(FGASSP(N),*);READ(FGASSP(N),*)   ! SKIP 3 LINES
+         READ(FGASSP(N),*)NXSPDO(N),AGASSPNX(N) 
+         AGASSP(N)=AGASSPNX(N)
+        ENDIF
+    ENDDO
+    DO N=1,NGT
+        IF(GASGTC(N)=='      ON' .AND. EQGT(N)==4 .AND. BGASGT(N)==1.0)THEN
+         FGASGT(N)=NPT; NPT=NPT+1
+         WRITE (SEGNUM,'(I0)') N 
+         SEGNUM = ADJUSTL(SEGNUM)  
+         L = LEN_TRIM(SEGNUM) 
+         FILE_GAS_GT(N)='w2_gt'//SEGNUM(1:L)//'DO.csv'
+         OPEN (FGASGT(N), FILE=FILE_GAS_GT(N),STATUS='OLD')
+         READ(FGASGT(N),*);READ(FGASGT(N),*);READ(FGASGT(N),*)   ! SKIP 3 LINES
+         READ(FGASGT(N),*)NXGTDO(N),AGASGTNX(N) 
+         AGASGT(N)=AGASGTNX(N)
+        ENDIF
+    ENDDO
+  
+  if(.NOT.Met_regions)then     ! SW 12/13/2023
+    DO JW=1,NWB
     MET(JW) = NPT; NPT = NPT+1
     OPEN (MET(JW),FILE=METFN(JW),STATUS='OLD')
     READ(MET(JW),'(A1)')INFORMAT
@@ -221,6 +263,7 @@ SUBROUTINE TIME_VARYING_DATA
     WIND(JW)   = WINDNX(JW)
     PHI(JW)    = PHINX(JW)
     CLOUD(JW)  = CLOUDNX(JW)
+    
     IF(SYSTDG)THEN
     PALT_JW(JW)= PALT_JWNX(JW)                                       ! systdg - time series input PALT
     IF (PALT_JW(JW)<=0.0) PALT_JW(JW) = 760.0                        ! systdg - time series input PALT
@@ -234,34 +277,6 @@ SUBROUTINE TIME_VARYING_DATA
     WINDO(JW)  = WINDNX(JW)
     PHIO(JW)   = PHINX(JW)
     CLOUDO(JW) = CLOUDNX(JW)
-    !IF (PHISET > 0) PHI(JW)  = PHISET
-    !IF (PHISET > 0) PHIO(JW) = PHISET
-    DO N=1,NSP              ! SW 1/18/2022
-        IF(GASSPC(N)=='      ON' .AND.  EQSP(N)==4 .AND. BGASSP(N)==1)THEN
-         FGASSP(N)=NPT; NPT=NPT+1
-         WRITE (SEGNUM,'(I0)') N 
-         SEGNUM = ADJUSTL(SEGNUM)  
-         L = LEN_TRIM(SEGNUM) 
-         FILE_GAS_SP(N)='w2_sp'//SEGNUM(1:L)//'DO.csv'
-         OPEN (FGASSP(N), FILE=FILE_GAS_SP(N),STATUS='OLD')
-         READ(FGASSP(N),*);READ(FGASSP(N),*);READ(FGASSP(N),*)   ! SKIP 3 LINES
-         READ(FGASSP(N),*)NXSPDO(N),AGASSPNX(N) 
-         AGASSP(N)=AGASSPNX(N)
-        ENDIF
-    ENDDO
-    DO N=1,NGT
-        IF(GASGTC(N)=='      ON' .AND. EQGT(N)==4 .AND. BGASGT(N)==1.0)THEN
-         FGASGT(N)=NPT; NPT=NPT+1
-         WRITE (SEGNUM,'(I0)') N 
-         SEGNUM = ADJUSTL(SEGNUM)  
-         L = LEN_TRIM(SEGNUM) 
-         FILE_GAS_GT(N)='w2_gt'//SEGNUM(1:L)//'DO.csv'
-         OPEN (FGASGT(N), FILE=FILE_GAS_GT(N),STATUS='OLD')
-         READ(FGASGT(N),*);READ(FGASGT(N),*);READ(FGASGT(N),*)   ! SKIP 3 LINES
-         READ(FGASGT(N),*)NXGTDO(N),AGASGTNX(N) 
-         AGASGT(N)=AGASGTNX(N)
-        ENDIF
-    ENDDO
     
     IF(SYSTDG)THEN
     IF (READ_RADIATION(JW)) THEN
@@ -294,7 +309,109 @@ SUBROUTINE TIME_VARYING_DATA
             ENDIF
         END IF
     ENDIF
+    enddo !jw
+  else ! MetFileRegion
+       DO JW=1,NMetFileRegions
+                MET(JW) = NPT; NPT = NPT+1
+                OPEN (MET(JW),FILE=FNMetFileReg(JW),STATUS='OLD')
+                READ(MET(JW),'(A1)')INFORMAT
+                IF(INFORMAT=='$')METF(JW)=.TRUE.
+                IF(SYSTDG)THEN
+                IF (READ_RADIATION(MetRegWB(JW))) THEN
+                    IF(METF(MetRegWB(JW)))THEN
+                    READ (MET(JW),'(/)')
+                    READ (MET(JW),*) NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW), PALT_JWNX(JW)                 ! systdg - time series input PALT
+                    ELSE
+                    READ (MET(JW),'(//8F8.0)') NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW), PALT_JWNX(JW)       ! systdg - time series input PALT
+                    ENDIF
+                  SRONX(JW) = SRONX(JW)*REFL
+                  SRON(JW)  = SRONX(JW)
+                  SROO(JW)  = SRON(JW)
+                ELSE
+                  IF(METF(MetRegWB(JW)))THEN
+                  READ (MET(JW),'(/)')
+                  READ (MET(JW),*) NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW), PALT_JWNX(JW)             ! systdg - time series input PALT      
+                  ELSE
+                  READ (MET(JW),'(//7F8.0)') NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW), PALT_JWNX(JW)   ! systdg - time series input PALT     
+                  ENDIF
+                END IF
+                ELSE
+                IF (READ_RADIATION(MetRegWB(JW))) THEN
+                    IF(METF(MetRegWB(JW)))THEN
+                    READ (MET(JW),'(/)')
+                    READ (MET(JW),*) NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW)
+                    ELSE
+                    READ (MET(JW),'(//8F8.0)') NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW)
+                    ENDIF
+                  SRONX(JW) = SRONX(JW)*REFL
+                  SRON(JW)  = SRONX(JW)
+                  SROO(JW)  = SRON(JW)
+                ELSE
+                  IF(METF(MetRegWB(JW)))THEN
+                  READ (MET(JW),'(/)')
+                  READ (MET(JW),*) NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW)     
+                  ELSE
+                  READ (MET(JW),'(//7F8.0)') NXMET2(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW)    
+                  ENDIF
+                END IF
+        
+                ENDIF
     
+                TAIR(JW)   = TAIRNX(JW)
+                TDEW(JW)   = TDEWNX(JW)
+                WIND(JW)   = WINDNX(JW)
+                PHI(JW)    = PHINX(JW)
+                CLOUD(JW)  = CLOUDNX(JW)
+                IF(SYSTDG)THEN
+                PALT_JW(JW)= PALT_JWNX(JW)                                       ! systdg - time series input PALT
+                IF (PALT_JW(JW)<=0.0) PALT_JW(JW) = 760.0                        ! systdg - time series input PALT
+                  DO I=MetRegStart(JW),MetRegEnd(JW)                     !US(BS(JW))-1,DS(BE(JW))+1
+                  PALT(I) = PALT_JW(JW)/760.0*(1.0-ELWS_INI(I)/1000.0/44.3)**5.25  ! systdg - time series input PALT
+                  ENDDO
+                PALT_JWO(JW)= PALT_JWNX(JW)            ! systdg - time series input PALT
+                ENDIF
+                TAIRO(JW)  = TAIRNX(JW)
+                TDEWO(JW)  = TDEWNX(JW)
+                WINDO(JW)  = WINDNX(JW)
+                PHIO(JW)   = PHINX(JW)
+                CLOUDO(JW) = CLOUDNX(JW)
+    
+                IF(SYSTDG)THEN
+                IF (READ_RADIATION(MetRegWB(JW))) THEN
+                        IF(METF(MetRegWB(JW)))THEN
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW), PALT_JWNX(JW)                 ! systdg - time series input PALT
+                        ELSE
+                        READ (MET(JW),'(8F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW), PALT_JWNX(JW)         ! systdg - time series input PALT
+                        ENDIF
+                  SRONX(JW) = SRONX(JW)*REFL
+                    ELSE
+                        IF(METF(MetRegWB(JW)))THEN
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW), PALT_JWNX(JW)                 ! systdg - time series input PALT
+                        ELSE
+                        READ (MET(JW),'(7F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW), PALT_JWNX(JW)         ! systdg - time series input PALT
+                        ENDIF
+                    END IF
+                ELSE
+                        IF (READ_RADIATION(MetRegWB(JW))) THEN
+                        IF(METF(MetRegWB(JW)))THEN
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW)
+                        ELSE
+                        READ (MET(JW),'(8F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW)
+                        ENDIF
+                        SRONX(JW) = SRONX(JW)*REFL
+                    ELSE
+                        IF(METF(MetRegWB(JW)))THEN
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW)
+                        ELSE
+                        READ (MET(JW),'(7F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW)
+                        ENDIF
+                    END IF
+                ENDIF
+    ENDDO
+  endif   ! MetFileRegion
+  
+    
+  do jw=1,nwb
     IF (READ_EXTINCTION(JW)) THEN
       EXT(JW) = NPT; NPT = NPT+1
       OPEN (EXT(JW),FILE=EXTFN(JW),STATUS='OLD')
@@ -341,6 +458,7 @@ SUBROUTINE TIME_VARYING_DATA
     END DO
     READ (WDQ,'(10F8.0:/(8X,9F8.0))')    NXQWD1,(QWDNX(JW),JW=1,NWD)
     ENDIF
+    QWDSAV(1:NWD) = QWD(1:NWD)                                                                                        !SR 06/29/2021
   END IF
   IF (TRIBUTARIES) THEN
     DO JT=1,NTR
@@ -765,6 +883,7 @@ SUBROUTINE TIME_VARYING_DATA
             QSTRO(:,JB) = QSTRNX(:,JB)
             READ (OTQ(JB),'(10F8.0:/(8X,9F8.0))')    NXQOT1(JB),(QSTRNX(JS,JB),JS=1,NSTR(JB))
            ENDIF
+           QSTRSAV(:,JB) = QSTR(:,JB)                                                                                  !SR 06/29/2021
            
            IF(DYNSTRUC(JB) == '      ON')THEN
                ODYNS(JB)=NPT; NPT=NPT+1
@@ -1276,7 +1395,24 @@ SUBROUTINE TIME_VARYING_DATA
 	  bgto = bgtnx
     END WHERE
     READ (GTQ,'(1000F8.0)')    NXQGT,(BGTNX(JG),JG=1,NGT)
- ENDIF
+     ENDIF
+     
+     DO I=1,NGT
+     IF(DYNGTC(I) == 'FLOW_ZGT')THEN
+        GTZ=NPT; NPT=NPT+1  
+               OPEN (GTZ,FILE='dynselevGT.npt',STATUS='OLD')
+               READ(GTZ,*)
+               READ(GTZ,*)NJJ
+               DO J=1,NJJ
+               READ(GTZ,*)JJG(J)
+               ENDDO
+               READ(GTZ,*)
+               READ (GTZ,*)NXZGT,(EGT(JJG(J)), J=1,NJJ)
+               READ (GTZ,*)NXZGT,(NXEGT(JJG(J)), J=1,NJJ)
+               EXIT
+     ENDIF
+     ENDDO
+     
      
   END IF
    IF (PIPES)THEN                                         ! SW 5/5/10
@@ -1353,6 +1489,8 @@ ENTRY READ_INPUT_DATA (NXTVD)
     READ (WSH,'(10F8.0:/(8X,9F8.0))') NXWSC,(WSCNX(I),I=1,IMX)
     ENDIF
   END DO
+  
+  IF(.NOT.Met_regions)then     ! SW 12/13/2023
   DO JW=1,NWB
     DO WHILE (JDAY >= NXMET1(JW))
       TDEW(JW)   = TDEWNX(JW)
@@ -1418,7 +1556,88 @@ ENTRY READ_INPUT_DATA (NXTVD)
       ENDIF
       
     END DO
-    NXTVD = MIN(NXTVD,NXMET1(JW))
+  ENDDO ! JW LOOP
+        ELSE  ! MET REGIONS
+                DO JW=1,NMetFileRegions
+                    DO WHILE (JDAY >= NXMET1(JW))
+                      TDEW(JW)   = TDEWNX(JW)
+                      TDEWO(JW)  = TDEWNX(JW)
+                      WIND(JW)   = WINDNX(JW)
+                      WINDO(JW)  = WINDNX(JW)
+                      PHI(JW)    = PHINX(JW)
+                      PHIO(JW)   = PHINX(JW)
+                      !IF (PHISET > 0) PHI(JW)  = PHISET
+                      !IF (PHISET > 0) PHIO(JW) = PHISET
+                      TAIR(JW)   = TAIRNX(JW)
+                      TAIRO(JW)  = TAIRNX(JW)
+                      CLOUD(JW)  = CLOUDNX(JW)
+                      CLOUDO(JW) = CLOUDNX(JW)
+                      NXMET2(JW) = NXMET1(JW)
+                      !
+                      IF(SYSTDG)THEN
+                      ! systdg - time series input PALT
+                      PALT_JW(JW)= PALT_JWNX(JW)
+                      PALT_JWO(JW)=PALT_JWNX(JW)
+                      IF (PALT_JW(JW)<=0.0) PALT_JW(JW) = 760.0
+                        DO I=US(BS(JW))-1,DS(BE(JW))+1
+                        PALT(I) = PALT_JW(JW)/760.0*(1.0-ELWS_INI(I)/1000.0/44.3)**5.25  ! systdg - time series input PALT
+                        ENDDO
+                      !PALT(:) = PALT_JW(JW)/760.0*(1.0-ELWS_INI(:)/1000.0/44.3)**5.25
+                      ! systdg - add time series input PALT
+
+                      !
+                      IF (READ_RADIATION(MetRegWB(JW))) THEN
+                        SRON(JW)  = SRONX(JW)
+                        SROO(JW)  = SRON(JW)
+                        IF(METF(MetRegWB(JW)))THEN
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW), PALT_JWNX(JW)                 ! systdg - time series input PALT_JW
+                        ELSE
+                        READ (MET(JW),'(8F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW), PALT_JWNX(JW)         ! systdg - time series input PALT_JW
+                        ENDIF
+                        SRONX(JW) = SRONX(JW)*REFL
+                      ELSE
+                        IF(METF(MetRegWB(JW)))THEN  
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW), PALT_JWNX(JW)                ! systdg - time series input PALT_JW
+                        ELSE
+                        READ (MET(JW),'(7F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW), PALT_JWNX(JW)        ! systdg - time series input PALT_JW
+                        ENDIF
+                      END IF
+                      ELSE
+                      IF (READ_RADIATION(MetRegWB(JW))) THEN
+                        SRON(JW)  = SRONX(JW)
+                        SROO(JW)  = SRON(JW)
+                        IF(METF(MetRegWB(JW)))THEN
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW)
+                        ELSE
+                        READ (MET(JW),'(8F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW),SRONX(JW)
+                        ENDIF
+                        SRONX(JW) = SRONX(JW)*REFL
+                      ELSE
+                        IF(METF(MetRegWB(JW)))THEN  
+                        READ (MET(JW),*) NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW)
+                        ELSE
+                        READ (MET(JW),'(7F8.0)') NXMET1(JW),TAIRNX(JW),TDEWNX(JW),WINDNX(JW),PHINX(JW),CLOUDNX(JW)
+                        ENDIF
+                      END IF
+          
+                      ENDIF
+      
+                    END DO
+            ENDDO ! NMetRegions LOOP
+  ENDIF
+  
+  
+      IF(Met_regions)then     ! SW 12/13/2023
+        DO NMet=1,NMetFileRegions 
+          NXTVD = MIN(NXTVD,NXMET1(NMet))
+        enddo
+       else
+        DO JW=1,NWB
+          NXTVD = MIN(NXTVD,NXMET1(JW))
+        ENDDO
+      ENDIF
+      
+    DO JW=1,NWB    
     IF (READ_EXTINCTION(JW)) THEN
       DO WHILE (JDAY >= NXEXT1(JW))
         EXH2O(JW)  = EXTNX(JW)
@@ -1450,6 +1669,7 @@ ENTRY READ_INPUT_DATA (NXTVD)
       ELSE
       READ (WDQ,'(10F8.0:/(8X,9F8.0))') NXQWD1,(QWDNX(JWD),JWD=1,NWD)
       ENDIF
+    QWDSAV(1:NWD) = QWD(1:NWD)                                                                                      !SR 06/29/2021
     END DO
     NXTVD = MIN(NXTVD,NXQWD1)
   END IF
@@ -2039,6 +2259,7 @@ ENTRY READ_INPUT_DATA (NXTVD)
           ELSE
           READ (OTQ(JB),'(10F8.0:/(8X,9F8.0))') NXQOT1(JB),(QSTRNX(JS,JB),JS=1,NSTR(JB))
           ENDIF
+        QSTRSAV(1:NSTR(JB),JB) = QSTR(1:NSTR(JB),JB)                                                                !SR 06/29/2021
         END DO
         IF(DYNSTRUC(JB) == '      ON')THEN
         DO WHILE (JDAY >= NXDYNS(JB))
@@ -2382,6 +2603,18 @@ ENTRY READ_INPUT_DATA (NXTVD)
                 READ (GTQ,'(1000F8.0)') NXQGT,(BGTNX(JG),JG=1,NGT)
       ENDIF
     END DO
+    DO I=1,NGT
+    IF(DYNGTC(I) == 'FLOW_ZGT')THEN
+        DO WHILE (JDAY >= NXZGT)
+            DO J=1,NJJ
+            EGT(JJG(J))=NXEGT(JJG(J))    !EGT(J)=NXEGT(J)    ! Mohammad DWR 2/14/2025
+            END DO
+            READ (GTZ,*)NXZGT,(NXEGT(JJG(J)), J=1,NJJ)
+        ENDDO
+        NXTVD = MIN(NXTVD,NXZGT)
+        EXIT
+    END IF 
+    ENDDO
     NXTVD = MIN(NXTVD,NXQGT)
   END IF
 
@@ -2436,6 +2669,7 @@ ENTRY READ_INPUT_DATA (NXTVD)
       QSTR(:,BS(JW):BE(JW))   = 0.0
       QSTRO(:,BS(JW):BE(JW))  = 0.0
       QSTRNX(:,BS(JW):BE(JW)) = 0.0
+    QSTRSAV(:,BS(JW):BE(JW)) = 0.0                                                                                  !SR 06/29/2021
     END IF
   END DO
   WHERE (NO_WIND)
@@ -2455,6 +2689,7 @@ ENTRY READ_INPUT_DATA (NXTVD)
     QWD   = 0.0
     QWDO  = 0.0
     QWDNX = 0.0
+    QWDSAV = 0.0                                                                                                      !SR 06/29/2021
   END IF
 RETURN
 
@@ -2465,7 +2700,7 @@ RETURN
 ENTRY INTERPOLATE_INPUTS
 
 ! Meteorological/light extinction data
-
+IF(.NOT.Met_Regions)THEN
   DO JW=1,NWB
     IF (INTERP_METEOROLOGY(JW)) THEN
       RATIO     = (NXMET1(JW)-JDAY)/(NXMET1(JW)-NXMET2(JW))
@@ -2507,6 +2742,54 @@ ENTRY INTERPOLATE_INPUTS
       
       IF (READ_RADIATION(JW)) SRON(JW) = (1.0-RATIO)*SRONX(JW)+RATIO*SROO(JW)
     END IF
+  ENDDO ! JW LOOP
+    ELSE
+                DO JW=1,NMetFileRegions
+                IF (INTERP_METEOROLOGY(MetRegWB(JW))) THEN
+                  RATIO     = (NXMET1(JW)-JDAY)/(NXMET1(JW)-NXMET2(JW))
+                  TDEW(JW)  = (1.0-RATIO)*TDEWNX(JW)+RATIO*TDEWO(JW)
+                  WIND(JW)  = (1.0-RATIO)*WINDNX(JW)+RATIO*WINDO(JW)
+                  ! CONVERT PHIO AND PHINX TO LESS THAN 2*PI     SW 2/13/15
+                  DO WHILE(PHIO(JW)>2.*PI)
+                      PHIO(JW)=PHIO(JW)-2.*PI
+                  ENDDO
+                  DO WHILE(PHINX(JW)>2.*PI)
+                      PHINX(JW)=PHINX(JW)-2.*PI
+                  ENDDO     
+                  IF (PHIO(JW)-PHINX(JW) > PI) THEN                      
+                    PHI(JW) = (1.0-RATIO)*(PHINX(JW)+2.0*PI)+RATIO*PHIO(JW)
+                  ELSEIF (PHIO(JW)-PHINX(JW) < -PI) THEN                       ! WX 2/13/15
+                    PHI(JW) = (1.0-RATIO)*PHINX(JW)+RATIO*(PHIO(JW) +2.0*PI)   ! WX 2/13/15
+                  ELSE
+                    PHI(JW) = (1.0-RATIO)*PHINX(JW)+RATIO*PHIO(JW)
+                  END IF
+
+                  !IF (ABS(PHIO(JW)-PHINX(JW)) > PI) THEN
+                  !  PHI(JW) = (1.0-RATIO)*(PHINX(JW)+2.0*PI)+RATIO*PHIO(JW)
+                  !ELSE
+                  !  PHI(JW) = (1.0-RATIO)*PHINX(JW)+RATIO*PHIO(JW)
+                  !END IF
+                  TAIR(JW)  = (1.0-RATIO)*TAIRNX(JW) +RATIO*TAIRO(JW)
+                  CLOUD(JW) = (1.0-RATIO)*CLOUDNX(JW)+RATIO*CLOUDO(JW)
+                  !
+                  IF(SYSTDG)THEN
+                  ! systdg - time series input PALT_JW
+                  PALT_JW(JW)= (1.0-RATIO)*PALT_JWNX(JW) +RATIO*PALT_JWO(JW)            
+                  IF (PALT_JW(JW)<=0.0) PALT_JW(JW) = 760.0
+                    DO I=US(BS(JW))-1,DS(BE(JW))+1
+                    PALT(I) = PALT_JW(JW)/760.0*(1.0-ELWS_INI(I)/1000.0/44.3)**5.25  ! systdg - time series input PALT
+                    ENDDO
+                   !PALT(:) = PALT_JW(JW)/760.0*(1.0-ELWS_INI(:)/1000.0/44.3)**5.25
+                   ! systdg - time series input PALT_JW
+                  ENDIF
+      
+                  IF (READ_RADIATION(MetRegWB(JW))) SRON(JW) = (1.0-RATIO)*SRONX(JW)+RATIO*SROO(JW)
+                END IF
+              ENDDO ! # Met Regions LOOP
+        
+    ENDIF
+    
+    DO JW=1,NWB
     IF (READ_EXTINCTION(JW).AND.INTERP_EXTINCTION(JW)) THEN    ! 6/30/15 SW
       RATIO     = (NXEXT1(JW)-JDAY)/(NXEXT1(JW)-NXEXT2(JW))
       EXH2O(JW) = (1.0-RATIO)*EXTNX(JW)+RATIO*EXTO(JW)
@@ -2526,7 +2809,10 @@ ENTRY INTERPOLATE_INPUTS
   IF (NWD > 0) THEN
     QRATIO = (NXQWD1-JDAY)/(NXQWD1-NXQWD2)
     DO JWD=1,NWD
-      IF (INTERP_WITHDRAWAL(JWD)) QWD(JWD) = (1.0-QRATIO)*QWDNX(JWD)+QRATIO*QWDO(JWD)
+      IF (INTERP_WITHDRAWAL(JWD)) THEN
+        QWD(JWD) = (1.0-QRATIO)*QWDNX(JWD)+QRATIO*QWDO(JWD)
+        QWDSAV(JWD) = QWD(JWD)                                                                                        !SR 06/29/2021
+      END IF                                                                                                          !SR 06/29/2021     
     END DO
   END IF
 
@@ -2626,7 +2912,10 @@ ENTRY INTERPOLATE_INPUTS
     IF (DN_FLOW(JB) .AND. NSTR(JB) > 0) THEN
       QRATIO = (NXQOT1(JB)-JDAY)/(NXQOT1(JB)-NXQOT2(JB))
       DO JS=1,NSTR(JB)
-        IF (INTERP_OUTFLOW(JS,JB)) QSTR(JS,JB) = (1.0-QRATIO)*QSTRNX(JS,JB)+QRATIO*QSTRO(JS,JB)
+        IF (INTERP_OUTFLOW(JS,JB))THEN
+            QSTR(JS,JB) = (1.0-QRATIO)*QSTRNX(JS,JB)+QRATIO*QSTRO(JS,JB)
+          QSTRSAV(JS,JB) = QSTR(JS,JB)                                                                                !SR 06/29/2021
+        END IF                                                                                                        !SR 06/29/2021            
       END DO
     END IF
 
@@ -2707,9 +2996,11 @@ ENTRY DEALLOCATE_TIME_VARYING_DATA
   DEALLOCATE (DTT,    PRT,    UHT,    DHT,    INC,    DTC,    PRC,    UHC,    DHC,    OTQ,    MET,    EXT,    EXTNX,  EXTO, EXTF)
   DEALLOCATE (NXEXT1, NXEXT2, CTRO,   CINO,   QOUTO,  CDTRO,  TUHO,   TDHO,   QSTRO,  CTRNX,  CINNX,  QOUTNX, CDTRNX, CPRNX)
   DEALLOCATE (TUHNX, TDHNX,   QSTRNX, CUHO,   CDHO,   CUHNX,  CDHNX, INCF, DTCF, PRCF, METF, ODYNS, NXDYNS,NXESTRT,DYNEF,JJS, PRTF, PRQF)
-  DEALLOCATE (EUHF,TUHF,CUHF,EDHF,TDHF,CDHF,XX)
+  DEALLOCATE (EUHF,TUHF,CUHF,EDHF,TDHF,CDHF,XX,NXEGT,JJG)
   DEALLOCATE (ATMDEP, ATM_DEP_LOADINGNX, NXATMD, NXATMD2,ATM_DEP_LOADING0,NXATMDEP)
   DEALLOCATE (INFLOW_CONST,   TRIB_CONST,     DTRIB_CONST,    PRECIP_CONST, PUMPD, NXPUMP,EPU2,EONPU2,EOFFPU2,QPU2, OTQF, TRCF,TRQF, TRTF,DTTF, DTQF, INQF, INTF)
+  IF(NGT>0)DEALLOCATE(NXGTDO, FGASGT,FILE_GAS_GT,AGASGTNX)
+  IF(NSP>0)DEALLOCATE(NXSPDO, FGASSP,FILE_GAS_SP,AGASSPNX)
 RETURN
 END SUBROUTINE TIME_VARYING_DATA
 

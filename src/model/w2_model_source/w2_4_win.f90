@@ -1,8 +1,8 @@
 ! CE-QUAL-W2 computations
-INTEGER(4) FUNCTION CE_QUAL_W2 (DLG)
+INTEGER FUNCTION CE_QUAL_W2 (DLG)
 
 ! IVF/CVF specific code
-  USE DFLOGM; USE MSCLIB; USE DFWIN, RENAMED => DLT;
+  USE IFLOGM; USE MSCLIB; USE DFWIN, RENAMED => DLT;   ! USE DFLOGM
 
  !DEC$ATTRIBUTES STDCALL   :: ce_qual_w2
  !DEC$ATTRIBUTES REFERENCE :: Dlg
@@ -16,7 +16,7 @@ INTEGER(4) FUNCTION CE_QUAL_W2 (DLG)
   USE CEMASedimentDiagenesis, only: C2SF,InitCond_SedFlux
   USE INITIALVELOCITY; USE ENVIRPMOD
   USE BIOENERGETICS
-  USE BUILDVERSION
+  USE BUILDVERSION; USE MetFileRegion; USE HYPOAERATION
   IMPLICIT NONE
  ! include "omp_lib.h"      ! OPENMP directive to adjust the # of processors TOGGLE FOR DEBUG
 
@@ -24,12 +24,13 @@ INTEGER(4) FUNCTION CE_QUAL_W2 (DLG)
   TYPE (DIALOG) :: DLG
   INTEGER       :: RESULT         !, RESULT1, IRESULT   ! SW 2/2019
   CHARACTER(240):: MODDIR1  
-  REAL          :: DEPTH
+  REAL          :: DEPTH, TEST
   !INTEGER                                   :: N_WAITS, NWAIT                                                           !SR 11/26/19
   !INTEGER,        ALLOCATABLE, DIMENSION(:) :: WAIT_INDEX                                                               !SR 11/26/19
   !CHARACTER(2),   ALLOCATABLE, DIMENSION(:) :: WAIT_TYPE                                                                !SR 11/26/19
   !CHARACTER(240), ALLOCATABLE, DIMENSION(:) :: FILEDIR
   LOGICAL       :: CSVFORMAT
+  ! logical :: PLUNGEPT=.true.
   CHARACTER(30) :: CHAR30
   CHARACTER(8)  :: CHAR8
 
@@ -54,9 +55,11 @@ IF(LENGTH /= 0)THEN
       CASE(2)  ! ENOENT
         WRITE(W2ERR,*)'The directory does not exist:',DIRC
         WRITE(W2ERR,*)'Run stopped'
+        ERROR_OPEN=.TRUE. 
       CASE(20)   ! ENOTDIR
         WRITE(W2ERR,*)'This is not a directory:', DIRC
         WRITE(W2ERR,*)'Run stopped'
+        ERROR_OPEN=.TRUE. 
       CASE(0)    ! NO ERROR
     END SELECT  
 ENDIF
@@ -88,6 +91,8 @@ close(CON)
   FISH_PARTICLE_EXIST=.FALSE.
   INQUIRE(FILE='w2_particle.csv',EXIST=FISH_PARTICLE_EXIST)    ! SW 4/30/15
   
+  Call ReadMetRegions    ! See if Met data is organized by regions rather than waterbodies  SW 12/13/2023  
+  
 ! Open control file
   IOPENFISH=0
   OPEN (CON,FILE=CONFN,STATUS='OLD',IOSTAT=I)
@@ -104,10 +109,7 @@ close(CON)
   END IF
 
 CALL INPUT
-
-!SP CEMA
-Call CEMA_W2_Input
-!End SP CEMA
+IF(Met_Regions)CALL MetRegionsWB   !SW 12/13/2023
 
 ! Open Error File
   OPEN (W2ERR,FILE='w2.err',STATUS='UNKNOWN')
@@ -208,8 +210,9 @@ END IF
   RESTART_IN   =  RSIC == '      ON'.OR. RESTART_PUSHED
 ! Restart data
   IF (RESTART_PUSHED) RSIFN = 'rso.opt'
+  JDAY = TMSTRT 
+  Call CEMA_W2_Input
 
-  JDAY = TMSTRT
   IF (RESTART_IN) THEN
     RSI=10   ! SW 5/26/15
     VERT_PROFILE = .FALSE.
@@ -218,7 +221,7 @@ END IF
     READ  (RSI) NIT,    NV,     KMIN,   IMIN,   NSPRF,  CMBRT,  ZMIN,   IZMIN,  START,  CURRENT
     READ  (RSI) DLTDP,  SNPDP,  TSRDP,  VPLDP,  PRFDP,  CPLDP,  SPRDP,  RSODP,  SCRDP,  FLXDP,  WDODP
     READ  (RSI) JDAY,   ELTM,   ELTMF,  DLT,    DLTAV,  DLTS,   MINDLT, JDMIN,  CURMAX
-    READ  (RSI) NXTMSN, NXTMTS, NXTMPR, NXTMCP, NXTMVP, NXTMRS, NXTMSC, NXTMSP, NXTMFL, NXTMWD, NXWL, NXFLOWBAL, NXNPBAL,NXTMWD_SEC
+    READ  (RSI) NXTMSN, NXTMTS, NXTMPR, NXTMCP, NXTMVP, NXTMRS, NXTMSC, NXTMSP, NXTMFL, NXTMWD, NXWL, NXFLOWBAL, NXNPBAL,NXTMWD_SEC,NXTMUK
     READ  (RSI) VOLIN,  VOLOUT, VOLUH,  VOLDH,  VOLPR,  VOLTRB, VOLDT,  VOLWD,  VOLEV,  VOLSBR, VOLTR, VOLSR,VOLICE,ICEBANK
     READ  (RSI) TSSEV,  TSSPR,  TSSTR,  TSSDT,  TSSWD,  TSSIN,  TSSOUT, TSSS,   TSSB,   TSSICE
     READ  (RSI) TSSUH,  TSSDH,  TSSUH2, TSSDH2, CSSUH2, CSSDH2, VOLUH2, VOLDH2, QUH1
@@ -226,10 +229,11 @@ END IF
     READ  (RSI) Z,      SZ,     ELWS,   SAVH2,  SAVHR,  H2
     READ  (RSI) KTWB,   KTI,    SKTI,   SBKT
     READ  (RSI) ICE,    ICETH,  CUF,    QSUM
-    READ  (RSI) U,      W,      SU,     SW,     AZ,     SAZ,    DLTLIM
+    READ  (RSI) U,      W,      SU,     SW,     AZ,     SAZ,    DLTLIM, SELWS
     READ  (RSI) T1,     T2,     C1,     C2,     C1S,    SED,    KFS,    CSSK
     READ  (RSI) EPD,    EPM
-    READ  (RSI) MACMBRT,MACRC,  SMACRC, MAC,    SMAC,   MACRM,  MACSS
+    !READ  (RSI) MACMBRT,MACRC,  SMACRC, MAC,    SMAC,   MACRM,  MACSS
+    READ  (RSI) MACMBRT,MACRC,  MAC,    MACRM,  MACSS
     READ  (RSI) SEDC, SEDN, SEDP, ZOO, CD  ! mlm 10/06
     READ  (RSI) SDKV                       ! cb 11/30/06
     READ  (RSI) TKE                        ! sw 10/4/07
@@ -269,7 +273,7 @@ END IF
         IF(I_SEGINT==0)I_SEGINT=1
         READ(CONE,*)
         READ(CONE,*)
-        Read (CONE,*) VEL_VPR,VEL_VPR, VEL_INT, VEL_TOP,TEMP_VPR,TEMP_INT,TEMP_TOP, depth_vpr,d_int,d_top
+        Read (CONE,*) VEL_VPR, VEL_INT, VEL_TOP,TEMP_VPR,TEMP_INT,TEMP_TOP, depth_vpr,d_int,d_top
         VEL_VPR=ADJUSTR(VEL_VPR);TEMP_VPR=ADJUSTR(TEMP_VPR);DEPTH_VPR=ADJUSTR(DEPTH_VPR)
         READ(CONE,*)
         READ(CONE,*)
@@ -326,6 +330,7 @@ END IF
     
     CLOSE (RSI)
   END IF
+
   CE_QUAL_W2 =  1
   
   ! Open warning file
@@ -336,6 +341,12 @@ END IF
       OPEN (WRN,FILE='w2.wrn',POSITION='APPEND')
       WRITE(WRN,*)'***RESTART*** APPENDING ON JDAY',JDAY
   ENDIF
+  IF (PKSD_INPUT_WARNING) THEN                               ! warning carried from INPUT routine                       !SR 11/09/19
+    WRITE (WRN,'(A)') 'WARNING -- PKSD inputs in the ph_buffering.npt file must be greater than zero.'                  !SR 11/09/19
+    WRITE (WRN,'(A/)') 'Please fix your inputs. For now, PKSD values of zero will be set to 1.'                         !SR 11/09/19
+    PKSD_INPUT_WARNING = .FALSE.                                                                                        !SR 11/09/19
+  END IF                                                                                                                !SR 11/09/19
+
   
 CALL INIT
 
@@ -358,7 +369,7 @@ CALL INIT
             IU = CUS(JB)
             ID = DS(JB)
             do i=iu,id
-              depth=elws(i)-el(kbi(i)+1,i)
+              depth=(elws(i)-el(kbi(i)+1,i))/COSA(JB)    ! SR 1/2024
               write(NUNIT,'(i8,f8.3,f8.2,f8.3,2f8.2)')i,elws(i),qssi(i),u(kt,i),depth,elwss(i)
             end do
           end do
@@ -394,7 +405,8 @@ CALL INIT
     If(CEMARelatedCode .and. IncludeBedConsolidation)Call SetupCEMASedimentModel
     If(IncludeFFTLayer)Call CEMAFFTLayerCode
     !If(CEMARelatedCode .and. IncludeCEMASedDiagenesis)Call CEMASedimentDiagenesis  
- 
+    JDAY_INIT=JDAY   ! SW 10/16/2022 For Sed Diag model time step 
+    
 !***********************************************************************************************************************************
 !**                                                   Task 2: Calculations                                                        **
 !***********************************************************************************************************************************
@@ -412,15 +424,26 @@ CALL INIT
     END IF
 
     ! update wind at 2m for evaopration and evaoprative heat flux computations  ! SW 5/21/15
-   DO JW=1,NWB
-    DO I=CUS(BS(JW)),DS(BE(JW))
-      WIND2(I) = WIND(JW)*WSC(I)*DLOG(2.0D0/Z0(JW))/DLOG(WINDH(JW)/Z0(JW))    
-    END DO
-   ENDDO
-    
+
+       If(Met_Regions)then   ! SW 12/13/2023
+           DO JW=1,NMetFileRegions
+                DO I=MetRegStart(JW),MetRegEnd(JW)
+                    WIND2(I) = WIND(JW)*WSC(I)*DLOG(2.0D0/Z0(MetRegWB(JW)))/DLOG(WINDH(MetRegWB(JW))/Z0(MetRegWB(JW)))    
+                END DO
+           ENDDO
+           
+       else
+              DO JW=1,NWB
+                 DO I=CUS(BS(JW)),DS(BE(JW))
+                  WIND2(I) = WIND(JW)*WSC(I)*DLOG(2.0D0/Z0(JW))/DLOG(WINDH(JW)/Z0(JW))    
+                 END DO
+              ENDDO
+              
+       endif
+ 
 210 continue   ! timestep violation entry point
- IF(SELECTC == '      ON')CALL SELECTIVE   ! new subroutine for selecting water temperature target
- IF(SELECTC == '    USGS')CALL SELECTIVEUSGS   ! new subroutine for selecting water temperature target
+ IF(SELECTC == '      ON')CALL SELECTIVE   ! subroutine for selecting water temperature target
+ IF(SELECTC == '    USGS')CALL SELECTIVEUSGS   ! subroutine for selecting water temperature target
 CALL HYDROINOUT
 
 !SP CEMA
@@ -436,6 +459,7 @@ CALL HYDROINOUT
 !!$OMP PARALLEL DO default(Private)   !(KT,IU,ID,IUT,IDT,K,I,JB,ZB,WWT,DFC,JJB,BETABR,GC2,HRAD,UDR,UDL,AB)
     DO JW=1,NWB
       KT = KTWB(JW)
+      TEST = KTWB(JW)
       DO JB=BS(JW),BE(JW)
         IF(BR_INACTIVE(JB))CYCLE    ! SW 6/12/17
         IU = CUS(JB)
@@ -580,10 +604,15 @@ CALL HYDROINOUT
           END DO
         END DO
 
-!****** Adjusted wind speed and surface wind shear drag coefficient
-
+!****** Adjusted wind speed and surface wind shear drag coefficient      
+        
         DO I=IU-1,ID+1
-          WIND10(I) = WIND(JW)*WSC(I)*DLOG(10.0D0/Z0(JW))/DLOG(WINDH(JW)/Z0(JW))     ! older  version z0=0.01                      ! SW 11/28/07
+            
+          If(Met_Regions)then   ! SW 12/13/2023
+          WIND10(I) = WIND(I_MetRegions(I))*WSC(I)*DLOG(10.0D0/Z0(JW))/DLOG(WINDH(JW)/Z0(JW))     ! older  version z0=0.01                      ! SW 11/28/07
+          else
+          WIND10(I) = WIND(JW)*WSC(I)*DLOG(10.0D0/Z0(JW))/DLOG(WINDH(JW)/Z0(JW))     ! older  version z0=0.01   
+          endif
           FETCH(I)  = FETCHD(I,JB)
           IF (COS(PHI(JW)-PHI0(I)) < 0.0) FETCH(I) = FETCHU(I,JB)
           IF (FETCH(I) <= 0.0) FETCH(I) = DLX(I)
@@ -611,10 +640,13 @@ CALL HYDROINOUT
 !****** Longitudinal and lateral surface wind shear and exponential decay
 
         DO I=IUT,IDT-1
-          !WSHX(I) = CZ(I)*WIND10(I)**2*RHOA/RHOW*    DCOS(PHI(JW)-PHI0(I))* ICESW(I)
-          !WSHY(I) = CZ(I)*WIND10(I)**2*RHOA/RHOW*DABS(DSIN(PHI(JW)-PHI0(I)))*ICESW(I)
-          WSHX(I) = CZ(I)*WIND10(I)*WIND10(I)*RHOA/RHOW*    DCOS(PHI(JW)-PHI0(I))* ICESW(I)    ! SW 4/20/16 SPEED
+          If(Met_Regions)then   ! SW 12/13/2023
+          WSHX(I) = CZ(I)*WIND10(I)*WIND10(I)*RHOA/RHOW*DCOS(PHI(I_MetRegions(I))-PHI0(I))* ICESW(I)    ! SW 4/20/16 SPEED
+          WSHY(I) = CZ(I)*WIND10(I)*WIND10(I)*RHOA/RHOW*DABS(DSIN(PHI(I_MetRegions(I))-PHI0(I)))*ICESW(I)
+          else
+          WSHX(I) = CZ(I)*WIND10(I)*WIND10(I)*RHOA/RHOW*DCOS(PHI(JW)-PHI0(I))* ICESW(I)    ! SW 4/20/16 SPEED
           WSHY(I) = CZ(I)*WIND10(I)*WIND10(I)*RHOA/RHOW*DABS(DSIN(PHI(JW)-PHI0(I)))*ICESW(I)
+          endif
           WWT     = 0.0
           IF (WIND10(I) /= 0.0) WWT = 6.95D-2*(FETCH(I)**0.233D0)*WIND10(I)**0.534D0
           DFC = -8.0D0*PI*PI/(G*WWT*WWT+NONZERO)
@@ -671,9 +703,9 @@ CALL HYDROINOUT
           END DO
         END DO
 
-!****** Vertical eddy viscosities/diffusivities
-        FIRSTI(JW) = IUT
-		LASTI(JW) = IDT
+!!****** Vertical eddy viscosities/diffusivities
+!        FIRSTI(JW) = IUT
+!		LASTI(JW) = IDT
         DO I=IUT,IDT-1
           CALL CALCULATE_AZ
           !SP CEMA
@@ -729,16 +761,36 @@ CALL HYDROINOUT
 
 ! Hypolimnetic aeration
 
-        IF(AERATEC == '      ON' .and. oxygen_demand)CALL DZAERATE
+    !IF(AERATEC == '      ON' .and. oxygen_demand)CALL DZAERATE
+        !! Hypolimnetic aeration
+
+        IF(AERATEC == '      ON' .and. oxygen_demand)THEN
+            DO I=IUT,IDT
+             DO II=1,NAER
+                 IF(I==IASEG(II))THEN
+                     DZ(KTOPA(II):KBOTA(II),IASEG(II))=DZ(KTOPA(II):KBOTA(II),IASEG(II))*DZMULT(KTOPA(II):KBOTA(II),IASEG(II))
+                 ENDIF
+             ENDDO
+            ENDDO
+        ENDIF     
+
 
 !****** Density inversions
 
         DO I=IUT,IDT
           DO K=KT,KB(I)-1
             DZQ(K,I) = MIN(1.0D-2,DZ(K,I))                                    !MIN(1.0E-4,DZ(K,I)) No reason to limit DZ in rivers/estuaries-used in ULTIMATE scheme
-            IF (RHO(K,I) > RHO(K+1,I)) DZ(K,I) = DZMAX
+             IF (RHO(K,I) > RHO(K+1,I)) THEN
+                 IF(DZMAX > 0.0)THEN
+                     DZ(K,I) = DZMAX
+                 ELSE
+                     DZ(K,I) = DZ(K,I)*ABS(DZMAX)    !    CHANGE dzmax TO A MULTIPLIER IF ENETERED AS A NEGATIVE #
+                 ENDIF
+             ENDIF
           END DO
         END DO
+        
+    
 
 !****** Wind, velocity, and bottom shear stresses @ top and bottom of cell
 
@@ -914,8 +966,8 @@ CALL HYDROINOUT
         IF (UH_INTERNAL(JB)) THEN
           Z(IU-1)    = ((-EL(KTWB(JWUH(JB)),UHS(JB))+Z(UHS(JB))*COSA(JBUH(JB)))+EL(KT,IU-1)+SINA(JB)*DLXR(IU-1))/COSA(JB)
           ELWS(IU-1) = EL(KT,IU-1)-Z(IU-1)*COSA(JB)
-          KTI(IU-1)  = 2
-          DO WHILE (EL(KTI(IU-1),IU-1) > ELWS(IU-1))
+          KTI(IU-1)  = 2 
+          DO WHILE (EL(KTI(IU-1),IU-1) >= ELWS(IU-1))          ! SR 1/2024
             KTI(IU-1) = KTI(IU-1)+1
           END DO
           KTI(IU-1) = MAX(KTI(IU-1)-1,2)
@@ -925,7 +977,7 @@ CALL HYDROINOUT
           Z(ID+1)    = ((-EL(KTWB(JWDH(JB)),DHS(JB))+Z(DHS(JB))*COSA(JBDH(JB)))+EL(KT,ID+1))/COSA(JB)
           ELWS(ID+1) = EL(KT,ID+1)-Z(ID+1)*COSA(JB)
           KTI(ID+1)  = 2
-          DO WHILE (EL(KTI(ID+1),ID+1) > ELWS(ID+1))
+          DO WHILE (EL(KTI(ID+1),ID+1) >= ELWS(ID+1))          ! SR 1/2024
             KTI(ID+1) = KTI(ID+1)+1
           END DO
           KTI(ID+1) = MAX(KTI(ID+1)-1,2)
@@ -933,7 +985,7 @@ CALL HYDROINOUT
             Z(ID+1)    = Z(ID)-SLOPE(JB)*DLX(ID)/2.0D0
             ELWS(ID+1) = EL(KT,ID+1)-Z(ID+1)*COSA(JB)
             KTI(ID+1)  = 2
-            DO WHILE (EL(KTI(ID+1),ID+1) > ELWS(ID+1))
+            DO WHILE (EL(KTI(ID+1),ID+1) >= ELWS(ID+1))       ! SR 1/2024
               KTI(ID+1) = KTI(ID+1)+1
             END DO
             KTI(ID+1) = MAX(KTI(ID+1)-1,2)
@@ -956,10 +1008,16 @@ CALL HYDROINOUT
         DO I=IU+1,ID
           BTA(I) = V(I)-A(I)/BTA(I-1)*C(I-1)
           GMA(I) = D(I)-A(I)/BTA(I-1)*GMA(I-1)
-        END DO
+        END DO      
         Z(ID) = GMA(ID)/BTA(ID)
+          !if(z(id) /= z(id))then       ! Check for NAN
+          !    write(7678,'(a,f12.3,i5,e13.4,e13.4,e13.4,e13.4,2e13.4)')'Z(id)=NAN',jday,id,gma(id),c(id),bta(id),sz(id),f(id),f(id-1)
+          !endif
         DO I=ID-1,IU,-1
           Z(I) = (GMA(I)-C(I)*Z(I+1))/BTA(I)
+          !if(z(i) /= z(i))then    ! Check for NAN
+          !    write(7678,'(a,f12.3,i5,e13.4,e13.4,e13.4,e13.4,e13.4)')'Z(i)=NAN',jday,i,z(i+1),gma(i),c(i),bta(i),sz(i)
+          !endif
         END DO
 
 !****** Boundary water surface elevations
@@ -976,20 +1034,18 @@ CALL HYDROINOUT
             IF (EL(KT,I)-Z(I)*COSA(JB) > EL(KTI(I),I)) THEN
               DO WHILE ( EL(KT,I)-Z(I)*COSA(JB) > EL(KTI(I),I) .AND. KTI(I) /= 2)
                 Z(I)   = (EL(KT,I)-EL(KTI(I),I)-(EL(KT,I)-EL(KTI(I),I)-Z(I)*COSA(JB))*(B(KTI(I),I)/B(KTI(I)-1,I)))/COSA(JB)
-
-                IF(MACROPHYTE_ON)THEN
-                  KTIP=KTI(I)
-!C  KEEPING TRACK IF COLUMN KTI HAS MACROPHYTES
-                  IF(KTIP.GT.2)KTICOL(I)=.FALSE.
-                END IF
-
+!                IF(MACROPHYTE_ON)THEN
+!                  KTIP=KTI(I)
+!!C  KEEPING TRACK IF COLUMN KTI HAS MACROPHYTES
+!                  IF(KTIP.GT.2)KTICOL(I)=.FALSE.
+!                END IF
                 KTI(I) =  MAX(KTI(I)-1,2)
               END DO
-            ELSE IF (EL(KT,I)-Z(I)*COSA(JB) < EL(KTI(I)+1,I)) THEN
-              DO WHILE (EL(KT,I)-Z(I)*COSA(JB) < EL(KTI(I)+1,I) .AND. KTI(I) < KB(I))                   ! sw 7/18/11
+            ELSE IF (EL(KT,I)-Z(I)*COSA(JB) <= EL(KTI(I)+1,I)) THEN                         ! SR 1/2024
+              DO WHILE (EL(KT,I)-Z(I)*COSA(JB) <= EL(KTI(I)+1,I) .AND. KTI(I) < KB(I))                   ! sw 7/18/11      ! SR 1/2024
                 Z(I)   = (EL(KT,I)-EL(KTI(I)+1,I)-(EL(KT,I)-EL(KTI(I)+1,I)-Z(I)*COSA(JB))*(B(KTI(I),I)/B(KTI(I)+1,I)))/COSA(JB)
                 KTI(I) =  KTI(I)+1
-                IF(MACROPHYTE_ON)KTICOL(I)=.TRUE.  
+                !IF(MACROPHYTE_ON)KTICOL(I)=.TRUE.  
                 IF (KTI(I) >= KB(I)) EXIT
               END DO
             END IF
@@ -1006,20 +1062,37 @@ CALL HYDROINOUT
               BH1(KT,I) = BH1(KT,I)+BNEW(K,I)*H(K,JW) !BNEW(K,I)*H(K,JW)   ! SW 1/23/06
             END DO
             BKT(I)    = BH1(KT,I)/H1(KT,I)
-            IF(KBI(I) < KB(I))BKT(I)=BH1(KT,I)/(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I)))    ! SW 1/23/06
+            IF(KBI(I) < KB(I))BKT(I)=BH1(KT,I)/(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))    ! SW 1/23/06
             VOL(KT,I) = BH1(KT,I)*DLX(I)
           END DO
           DO I=IU-1,ID
-            AVHR(KT,I) = H1(KT,I)  +(H1(KT,I+1) -H1(KT,I))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)                          !SW 07/29/04  (H1(KT,I+1) +H1(KT,I))*0.5   
-            IF(KBI(I) < KB(I))AVHR(KT,I)=(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I)))  &
-               +(H1(KT,I+1)-(EL(KBI(I)+1,I+1)-EL(KB(I)+1,I+1)) -H1(KT,I)+(EL(KBI(I)+1,I)&
-               -EL(KB(I)+1,I)))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)        ! SW 1/23/06
-            BHR1(KT,I) =  BH1(KT,I)+(BH1(KT,I+1)-BH1(KT,I))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)                          !SW 07/29/04 (BH1(KT,I+1)+BH1(KT,I))*0.5 
+            !AVHR(KT,I) = H1(KT,I)  +(H1(KT,I+1) -H1(KT,I))*DLX(I)/(DLX(I)+DLX(I+1))                          !SW 07/29/04  (H1(KT,I+1) +H1(KT,I))*0.5   
+            !IF(KBI(I) < KB(I))AVHR(KT,I)=(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))  &
+            !   +(H1(KT,I+1)-(EL(KBI(I)+1,I+1)-EL(KB(I)+1,I+1))/COSA(JB) -H1(KT,I)+(EL(KBI(I)+1,I)&
+            !   -EL(KB(I)+1,I))/COSA(JB))*DLX(I)/(DLX(I)+DLX(I+1))        ! SW 1/23/06
+          IF (KBI(I) < KB(I) .OR. KBI(I+1) < KB(I+1)) THEN                           ! SR 7/2024
+            HTMP1 = H1(KT,I)
+            HTMP2 = H1(KT,I+1)
+            IF (KBI(I)   < KB(I))   HTMP1 = H1(KT,I)  -(EL(KBI(I)+1,I)    -EL(KB(I)+1,I))    /COSA(JB)
+            IF (KBI(I+1) < KB(I+1)) HTMP2 = H1(KT,I+1)-(EL(KBI(I+1)+1,I+1)-EL(KB(I+1)+1,I+1))/COSA(JB)
+            AVHR(KT,I) = HTMP1 +(HTMP2-HTMP1)*DLX(I)/(DLX(I)+DLX(I+1))
+          ELSE
+            AVHR(KT,I) = H1(KT,I) +(H1(KT,I+1)-H1(KT,I))*DLX(I)/(DLX(I)+DLX(I+1))
+          END IF
+              
+            BHR1(KT,I) =  BH1(KT,I)+(BH1(KT,I+1)-BH1(KT,I))*DLX(I)/(DLX(I)+DLX(I+1))                          !SW 07/29/04 (BH1(KT,I+1)+BH1(KT,I))*0.5 
             IF(CONSTRICTION(KT,I))THEN    ! SW 6/26/2018
               IF(BHR1(KT,I) > BCONSTRICTION(I)*H1(KT,I))BHR1(KT,I)= BCONSTRICTION(I)*H1(KT,I)
             ENDIF
           END DO
+          
+        IF (KBI(ID+1) < KB(ID+1)) THEN         ! SR 7/2024
+          AVHR(KT,ID+1) = H1(KT,ID+1)-(EL(KBI(ID+1)+1,ID+1)-EL(KB(ID+1)+1,ID+1))/COSA(JB)
+        ELSE
           AVHR(KT,ID+1) = H1(KT,ID+1)
+        END IF
+
+        !  AVHR(KT,ID+1) = H1(KT,ID+1)
           BHR1(KT,ID+1) = BH1(KT,ID+1)
           DLVOL(JB)        = 0.0
         ELSE                                                                                                           !SW 07/16/04
@@ -1030,17 +1103,34 @@ CALL HYDROINOUT
             AVH1(KT,I) = (H1(KT,I)+H1(KT+1,I))*0.5
             CALL GRID_AREA1 (EL(KT,I)-Z(I),EL(KT+1,I),BH1(KT,I),BI(KT,I))
             BKT(I)    = BH1(KT,I)/H1(KT,I)
-            if(kbi(i) < kb(i))bkt(i)=bh1(kt,i)/(h1(kt,i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))    ! SW 1/23/06
+            if(kbi(i) < kb(i))bkt(i)=bh1(kt,i)/(h1(kt,i)-(el(kbi(i)+1,i)-el(kb(i)+1,i))/COSA(JB))    ! SW 1/23/06
             VOL(KT,I) = BH1(KT,I)*DLX(I)
           END DO
           DO I=IU-1,ID
-            AVHR(KT,I) = H1(KT,I)  +(H1(KT,I+1) -H1(KT,I))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)                          !SW 07/29/04
-            if(kbi(i) < kb(i))avhr(kt,i)=(h1(kt,i)-(el(kbi(i)+1,i)-el(kb(i)+1,i))) &
-               +(H1(KT,I+1)-(el(kbi(i)+1,i+1)-el(kb(i)+1,i+1)) -H1(KT,I)+(el(kbi(i)+1,i)&
-               -el(kb(i)+1,i)))/(0.5D0*(DLX(I)+DLX(I+1)))*0.5D0*DLX(I)                                                     ! SW 1/23/06
-            BHR1(KT,I) = BH1(KT,I)+(BH1(KT,I+1)-BH1(KT,I))/(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                          !SW 07/29/04
+            !AVHR(KT,I) = H1(KT,I)  +(H1(KT,I+1) -H1(KT,I))*DLX(I)/(DLX(I)+DLX(I+1))                          !SW 07/29/04
+            !if(kbi(i) < kb(i))avhr(kt,i)=(h1(kt,i)-(el(kbi(i)+1,i)-el(kb(i)+1,i))/COSA(JB)) &
+            !   +(H1(KT,I+1)-(el(kbi(i)+1,i+1)-el(kb(i)+1,i+1))/COSA(JB) -H1(KT,I)+(el(kbi(i)+1,i)&
+            !   -el(kb(i)+1,i))/COSA(JB))*DLX(I)/(DLX(I)+DLX(I+1))                                                     ! SW 1/23/06
+           IF (KBI(I) < KB(I) .OR. KBI(I+1) < KB(I+1)) THEN                           ! SR 7/2024
+            HTMP1 = H1(KT,I)
+            HTMP2 = H1(KT,I+1)
+            IF (KBI(I)   < KB(I))   HTMP1 = H1(KT,I)  -(EL(KBI(I)+1,I)    -EL(KB(I)+1,I))    /COSA(JB)
+            IF (KBI(I+1) < KB(I+1)) HTMP2 = H1(KT,I+1)-(EL(KBI(I+1)+1,I+1)-EL(KB(I+1)+1,I+1))/COSA(JB)
+            AVHR(KT,I) = HTMP1 +(HTMP2-HTMP1)*DLX(I)/(DLX(I)+DLX(I+1))
+          ELSE
+            AVHR(KT,I) = H1(KT,I) +(H1(KT,I+1)-H1(KT,I))*DLX(I)/(DLX(I)+DLX(I+1))
+          END IF
+
+            BHR1(KT,I) = BH1(KT,I)+(BH1(KT,I+1)-BH1(KT,I))*DLX(I)/(DLX(I)+DLX(I+1))                        !SW 07/29/04
           END DO
+         ! AVHR(KT,ID+1) = H1(KT,ID+1)
+          
+        IF (KBI(ID+1) < KB(ID+1)) THEN         ! SR 7/2024
+          AVHR(KT,ID+1) = H1(KT,ID+1)-(EL(KBI(ID+1)+1,ID+1)-EL(KB(ID+1)+1,ID+1))/COSA(JB)
+        ELSE
           AVHR(KT,ID+1) = H1(KT,ID+1)
+        END IF
+
           BHR1(KT,ID+1) = BH1(KT,ID+1)
           DLVOL(JB)     = 0.0
         END IF
@@ -1054,45 +1144,45 @@ CALL HYDROINOUT
           END IF
         END DO
 
-        IF(MACROPHYTE_ON)THEN
-!C  IF DEPTH IN KTI LAYER BECOMES GREATER THAN THRESHOLD, SETTING
-!C      MACROPHYTE CONC. IN KTI COLUMN TO INITIAL CONC.
-          DO I=IU,ID
-            DEPKTI=ELWS(I)-EL(KTI(I)+1,I)
-
-!******* MACROPHYTES, SETTING CONC. OF MACROPHYTES IN NEW COLUMNS TO
-!********* INITIAL CONCENTRATION IF COLUMN DEPTH IS GREATER THAN 'THRKTI'
-            IF(.NOT.KTICOL(I).AND.DEPKTI.GE.THRKTI)THEN
-              KTICOL(I)=.TRUE.
-              JT=KTI(I)
-              MACT(JT,KT,I)=0.0
-              DO M=1,NMC
-                !MACRC(JT,KT,I,M)=MACWBCI(JW,M)
-                IF (ISO_macrophyte(JW,m))  macrc(jt,kt,I,m) = macwbci(JW,m)     ! cb 3/7/16
-                IF (VERT_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
-                IF (long_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
-                COLB=EL(KTI(I)+1,I)
-                COLDEP=ELWS(I)-COLB
-                !MACRM(JT,KT,I,M)=MACWBCI(JW,M)*COLDEP*CW(JT,I)*DLX(I)
-                MACRM(JT,KT,I,M)=macrc(jt,kt,I,m)*COLDEP*CW(JT,I)*DLX(I)         ! cb 3/17/16                 
-                MACT(JT,KT,I)=MACT(JT,KT,I)+MACWBCI(JW,M)
-                MACMBRT(JB,M) = MACMBRT(JB,M)+MACRM(JT,KT,I,M)
-              END DO
-            END IF
-
-!****** MACROPHYTES, WHEN COLUMN DEPTH IS LESS THAN 'THRKTI', ZEROING OUT CONC.
-            IF(KTICOL(I).AND.DEPKTI.LT.THRKTI)THEN
-              KTICOL(I)=.FALSE.
-              JT=KTI(I)
-              MACT(JT,KT,I)=0.0
-              DO M=1,NMC
-                MACMBRT(JB,M) = MACMBRT(JB,M)-MACRM(JT,KT,I,M)
-                MACRC(JT,KT,I,M)=0.0
-                MACRM(JT,KT,I,M)=0.0
-              END DO
-            END IF
-          END DO
-        END IF
+!        IF(MACROPHYTE_ON)THEN
+!!C  IF DEPTH IN KTI LAYER BECOMES GREATER THAN THRESHOLD, SETTING
+!!C      MACROPHYTE CONC. IN KTI COLUMN TO INITIAL CONC.
+!          DO I=IU,ID
+!            DEPKTI=ELWS(I)-EL(KTI(I)+1,I)
+!
+!!******* MACROPHYTES, SETTING CONC. OF MACROPHYTES IN NEW COLUMNS TO
+!!********* INITIAL CONCENTRATION IF COLUMN DEPTH IS GREATER THAN 'THRKTI'
+!            IF(.NOT.KTICOL(I).AND.DEPKTI.GE.THRKTI)THEN
+!              KTICOL(I)=.TRUE.
+!              JT=KTI(I)
+!              MACT(JT,KT,I)=0.0
+!              DO M=1,NMC
+!                !MACRC(JT,KT,I,M)=MACWBCI(JW,M)
+!                IF (ISO_macrophyte(JW,m))  macrc(jt,kt,I,m) = macwbci(JW,m)     ! cb 3/7/16
+!                IF (VERT_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
+!                IF (long_macrophyte(JW,m)) macrc(jt,kt,I,m) = 0.1
+!                COLB=EL(KTI(I)+1,I)
+!                COLDEP=ELWS(I)-COLB
+!                !MACRM(JT,KT,I,M)=MACWBCI(JW,M)*COLDEP*CW(JT,I)*DLX(I)
+!                MACRM(JT,KT,I,M)=macrc(jt,kt,I,m)*COLDEP*CW(JT,I)*DLX(I)         ! cb 3/17/16                 
+!                MACT(JT,KT,I)=MACT(JT,KT,I)+MACWBCI(JW,M)
+!                MACMBRT(JB,M) = MACMBRT(JB,M)+MACRM(JT,KT,I,M)
+!              END DO
+!            END IF
+!
+!!****** MACROPHYTES, WHEN COLUMN DEPTH IS LESS THAN 'THRKTI', ZEROING OUT CONC.
+!            IF(KTICOL(I).AND.DEPKTI.LT.THRKTI)THEN
+!              KTICOL(I)=.FALSE.
+!              JT=KTI(I)
+!              MACT(JT,KT,I)=0.0
+!              DO M=1,NMC
+!                MACMBRT(JB,M) = MACMBRT(JB,M)-MACRM(JT,KT,I,M)
+!                MACRC(JT,KT,I,M)=0.0
+!                MACRM(JT,KT,I,M)=0.0
+!              END DO
+!            END IF
+!          END DO
+!        END IF
 
 !***********************************************************************************************************************************
 !**                                             Task 2.2.4: Longitudinal velocities                                               **
@@ -1322,19 +1412,7 @@ CALL HYDROINOUT
       KT = KTWB(JW)
       DO JB=BS(JW),BE(JW)
         DO I=CUS(JB),DS(JB)
-
-        IF(DLTADD(JW)=='      ON'.and.ABS(H1(KT,I)-H2(KT,I))/H2(KT,I) > 0.35)THEN
-            WRITE (WRN,'(A,F0.3,A,I0,A,F0.3/3(A,F0.3),a,i10,a)') 'Computational warning |h1-h2|/h2>0.35 on Julian day = ',JDAY,' at segment ',I,' timestep DLT= ',DLT,&
-                                                  '   Water surface deviation [Z,m] = ',Z(I),' H1 layer thickness(m) = ',H1(KT,I),' H2 layer thickenss(m)=',h2(kt,i),' Iteration[NIT]=',nit,' DLT reduced'
-            WARNING_OPEN = .TRUE.
-            IF(H1(KT,I)>0.0)THEN
-            CURMAX=DLT*0.5
-            ELSE
-            CURMAX=DLTMIN
-            ENDIF
-            GO TO 220
-
-          ELSEIF (H1(KT,I) < 0.0) THEN
+          IF (H1(KT,I) < 0.0) THEN
             WRITE (WRN,'(A,F0.3,A,I0/4(A,F0.3))') 'Computational warning at Julian day = ',JDAY,' at segment ',I,'timestep = ',DLT,&
                                                   ' water surface deviation [Z] = ',Z(I),' m  layer thickness = ',H1(KT,I),' m'
             WARNING_OPEN = .TRUE.
@@ -1348,17 +1426,31 @@ CALL HYDROINOUT
               WRITE (W2ERR,'(A,F0.3/A,I0)') 'Unstable water surface elevation on day ',JDAY,'negative surface layer thickness '//  &
                                             'using minimum timestep at iteration ',NIT
               WRITE(W2ERR,*)'Branch #:',jb,' in Waterbody:',jw,' Surface layer KT:',ktwb(jw)
-              WRITE (W2ERR,'(A)') 'Segment, Surface layer thickness, m, Flow m3/s, U(KT,I) m/s, ELWS, m'
+              WRITE (W2ERR,'(A)') 'Segment, Surface layer thickness, m, Flow m3/s, U(KT,I) m/s, ELWS, m, Prior ELWS, m'
               DO II=MAX(CUS(JB),I-3),MIN(DS(JB),I+3)
-                WRITE (W2ERR,'(T4,I3,T19,F10.2,t37,f10.2,1x,f10.2,2x,f10.2)') II,H1(KT,II),QC(II),U(KT,II),ELWS(II)                           ! SW 7/13/10
+                WRITE (W2ERR,'(T4,I3,T19,F10.2,t37,e10.3,1x,e10.3,2x,f10.2,2x,f10.2)') II,H1(KT,II),QC(II),U(KT,II),ELWS(II),SELWS(II)                           ! SW 7/13/10
               END DO
               TEXT = 'Runtime error - see w2.err'
               ERROR_OPEN = .TRUE.
               GO TO 230
             END IF
+          ENDIF
+          
+            IF(DLTADD(JW)=='      ON'.and.ABS(H1(KT,I)-H2(KT,I))/H2(KT,I) > 0.35)THEN
+            WRITE (WRN,'(A,F0.3,A,I0,A,F0.3/3(A,F0.3),a,i10,a)') 'Computational warning |h1-h2|/h2>0.35 on Julian day = ',JDAY,' at segment ',I,' timestep DLT= ',DLT,&
+                                                  '   Water surface deviation [Z,m] = ',Z(I),' H1 layer thickness(m) = ',H1(KT,I),' H2 layer thickenss(m)=',h2(kt,i),' Iteration[NIT]=',nit,' DLT reduced'
+            WARNING_OPEN = .TRUE.
+            KLOC = KT
+            ILOC = I
+            IF (DLTFF*CURMAX < MINDLT) THEN
+              KMIN = KT
+              IMIN = I
+            END IF
+            CURMAX=DLT*0.5
           END IF
-        END DO
+    END DO   ! i LOOP
         DO I=CUS(JB),DS(JB)
+            TAU1=0.0D0;TAU2=0.0D0
            IF (VISCOSITY_LIMIT(JW))THEN
               IF(AX(JW) >= 0.0)TAU1   = 2.0*AX(JW)/(DLX(I)*DLX(I))
            ENDIF   
@@ -1397,6 +1489,7 @@ CALL HYDROINOUT
       END IF
       NV        = NV+1
       Z         = SZ
+      ELWS      = SELWS
       U         = SU
       W         = SW
       AZ        = SAZ
@@ -1405,11 +1498,6 @@ CALL HYDROINOUT
       KTI       = SKTI
       BKT       = SBKT
       QSS       = 0.0
-      !SP CEMA
-      !if(sediment_diagenesis)then
-      !  If(CEMARelatedCode .and. IncludeBedConsolidation)TSS       = 0.0  ! SW 7/27/2017
-      !end if
-      !End SP CEMA
       SB        = 0.0
       DLTS      = DLT
 
@@ -1424,7 +1512,7 @@ CALL HYDROINOUT
 
 
       CURMAX    = DLTMAXX/DLTFF
-      IF (PIPES) THEN
+      IF (PIPES) THEN         
         YS   = YSS
         VS   = VSS
         VST  = VSTS
@@ -1432,32 +1520,6 @@ CALL HYDROINOUT
         DTP  = DTPS
         QOLD = QOLDS
       END IF
-
-!********** Macrophytes
-      DO JW=1,NWB
-        DO M=1,NMC
-          IF (MACROPHYTE_CALC(JW,M)) THEN
-            KT = KTWB(JW)
-              DO JB=BS(JW),BE(JW)
-                DO I=CUS(JB),DS(JB)
-                  DO K=KT,KB(I)
-                    MAC(K,I,M)=SMAC(K,I,M)
-                    IF(KTICOL(I))THEN
-                      JT=KTI(I)
-                    ELSE
-                      JT=KTI(I)+1
-                    END IF
-                    JE=KB(I)
-                    DO J=JT,JE
-                      MACRC(J,K,I,M)=SMACRC(J,K,I,M)
-                      MACRM(J,K,I,M)=SMACRM(J,K,I,M)
-                    END DO
-                  END DO
-                END DO
-             END DO
-          END IF
-        END DO
-      END DO
 
       GO TO 210
     END IF
@@ -1469,14 +1531,14 @@ CALL HYDROINOUT
       DO JB=BS(JW),BE(JW)
         DO I=CUS(JB)-1,DS(JB)
           DEPTHB(KTWB(JW),I) = H1(KTWB(JW),I)
-          DEPTHM(KTWB(JW),I) = H1(KTWB(JW),I)*0.5
-             if(kbi(i) < kb(i)  .and. (el(kbi(i)+1,i)-el(kb(i)+1,i)) <  h1(ktwb(jw),i))then   ! SW 7/22/10 if h1 < elev diff this means depth is below the bottom - if we ignore that the run will continue but if dpethb is negative it will bomb in computing DECAY
-             depthb(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))    ! SW 1/23/06
-             depthm(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i)))*0.5   
+          DEPTHM(KTWB(JW),I) = H1(KTWB(JW),I)*0.5D0
+             if(kbi(i) < kb(i)  .and. (el(kbi(i)+1,i)-el(kb(i)+1,i))/COSA(JB) <  h1(ktwb(jw),i))then   ! SW 7/22/10 if h1 < elev diff this means depth is below the bottom - if we ignore that the run will continue but if dpethb is negative it will bomb in computing DECAY
+             depthb(ktwb(jw),i)= h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i))/COSA(JB)    ! SW 1/23/06
+             depthm(ktwb(jw),i)=(h1(ktwb(jw),i)-(el(kbi(i)+1,i)-el(kb(i)+1,i))/COSA(JB))*0.5D0   
              endif
           DO K=KTWB(JW)+1,KMX
             DEPTHB(K,I) = DEPTHB(K-1,I)+ H1(K,I)
-            DEPTHM(K,I) = DEPTHM(K-1,I)+(H1(K-1,I)+H1(K,I))*0.5
+            DEPTHM(K,I) = DEPTHM(K-1,I)+(H1(K-1,I)+H1(K,I))*0.5D0
           END DO
         END DO
       END DO
@@ -1500,6 +1562,101 @@ CALL HYDROINOUT
 CALL temperature
 
 IF (CONSTITUENTS) CALL wqconstituents
+
+! update vertical momemntum and diffusivity for next time step
+!    DO JW=1,NWB
+!      KT = KTWB(JW)
+!      DO JB=BS(JW),BE(JW)
+!        IF(BR_INACTIVE(JB))CYCLE    ! SW 6/12/17
+!        IUT = CUS(JB)
+!        IDT = DS(JB)
+!
+!      !****** Vertical eddy viscosities/diffusivities   -moved from earlier in the code since TKE relies on BH1/BH2 time dependent
+!
+!        DO I=IUT,IDT-1
+!          CALL CALCULATE_AZ
+!          !SP CEMA
+!          if(sediment_diagenesis)then
+!            If(CEMARelatedCode .and. IncludeCEMASedDiagenesis .and. ApplyBubbTurb)Call CEMABubblesTurbulence
+!          end if
+!          !End SP CEMA
+!          IF (KBMIN(I) <= KT+1 .AND. KB(I) > KBMIN(I)) THEN
+!            AZ(KBMIN(I),I) = AZMIN
+!            DZ(KBMIN(I),I) = DZMIN
+!          END IF
+!        END DO
+!        IF (AZC(JW) == '     TKE'.OR.AZC(JW) == '    TKE1') THEN
+!          AZT(:,IDT-1)  = AZ(:,IDT-1)
+!          DO I=IUT,IDT-2
+!            DO K=KT,KBMIN(I)
+!              AZT(K,I)  = 0.5*(AZ(K,I)+AZ(K,I+1))
+!            END DO
+!          AZ(KBMIN(I),I) = AZMIN              !SG 10/4/07 SW 10/4/07
+!          END DO
+!          AZ(KT:KMX-1,IUT:IDT-1)=AZT(KT:KMX-1,IUT:IDT-1)
+!        END IF
+!        DO JWR=1,NIW
+!        IF (WEIR_CALC) AZ(KTWR(JWR)-1:KBWR(JWR),IWR(1:NIW)) = 0.0
+!        END DO
+!
+!!****** Average eddy diffusivities
+!
+!        IF(AZC(JW) /= '     TKE'.AND.AZC(JW) /= '    TKE1')THEN
+!        DZ(KT:KB(IDT)-1,IDT) = DZT(KT:KB(IDT)-1,IDT-1)    ! DZT is only used for non-TKE algorithms
+!        ELSE
+!        DZ(KT:KB(IDT)-1,IDT) = DZ(KT:KB(IDT)-1,IDT-1)
+!        ENDIF
+!        DO I=IUT,IDT-1
+!          DO K=KT,KB(I)-1
+!            IF (K >= KBMIN(I)) THEN
+!              IF (KB(I-1) >= KB(I) .AND. I /= IUT) THEN
+!                DZ(K,I) = DZ(K,I-1)
+!              ELSE
+!                DZ(K,I) = DZMIN
+!              END IF
+!            ELSE
+!              IF(AZC(JW) /= '     TKE'.AND.AZC(JW) /= '    TKE1')THEN
+!                 IF(I == IUT)THEN                             ! SW 10/20/07
+!                    DZ(K,I)=DZT(K,I)
+!                 ELSE
+!                    DZ(K,I) = (DZT(K,I)+DZT(K,I-1))*0.5D0        ! SW 10/20/07  (DZT(K,I)+DZT(K+1,I))*0.5 ! FOR NON-TKE ALGORITHMS, AVERAGE DZ FROM EDGES TO CELL CENTERS
+!                 ENDIF
+!              ENDIF
+!            END IF
+!          END DO
+!        END DO
+!
+!! Hypolimnetic aeration
+!
+!        IF(AERATEC == '      ON' .and. oxygen_demand)THEN
+!            DO I=IUT,IDT
+!             DO II=1,NAER
+!                 IF(I==IASEG(II))THEN
+!                     DZ(KTOPA(II):KBOTA(II),IASEG(II))=DZ(KTOPA(II):KBOTA(II),IASEG(II))*DZMULT(KTOPA(II):KBOTA(II),IASEG(II))
+!                 ENDIF
+!             ENDDO
+!            ENDDO
+!        ENDIF     
+!
+!
+!!****** Density inversions
+!
+!        DO I=IUT,IDT
+!          DO K=KT,KB(I)-1
+!            DZQ(K,I) = MIN(1.0D-2,DZ(K,I))                                    !MIN(1.0E-4,DZ(K,I)) No reason to limit DZ in rivers/estuaries-used in ULTIMATE scheme
+!             IF (RHO(K,I) > RHO(K+1,I)) THEN
+!                 IF(DZMAX > 0.0)THEN
+!                     DZ(K,I) = DZMAX
+!                 ELSE
+!                     DZ(K,I) = DZ(K,I)*ABS(DZMAX)    !    CHANGE dzmax TO A MULTIPLIER IF ENETERED AS A NEGATIVE #
+!                 ENDIF
+!             ENDIF
+!          END DO
+!        END DO
+!      ENDDO
+!    ENDDO
+
+!IF(PLUNGEPT)Call Plunge_Point
 
 IF(FISH_PARTICLE_EXIST)CALL FISH ! SW 4/30/15
 
@@ -1552,7 +1709,7 @@ DO JW=1,NWB
         END IF
       END IF
  END DO
-
+RESTART_IN=.FALSE.   ! SW 6/29/2025
 END DO    ! END OF MAIN DO WHILE LOOP
 
 230 CONTINUE
@@ -1562,10 +1719,14 @@ END DO    ! END OF MAIN DO WHILE LOOP
     CALL RESTART_OUTPUT ('rso.opt')
   END IF
 
-  IF(END_RUN .and. RESTART_OUT)CALL RESTART_OUTPUT ('rso.opt')  ! cb 4/9/15 writing restart output at end of simulation if RSOC='ON'
+IF(END_RUN .and. RESTART_OUT)CALL RESTART_OUTPUT ('rso.opt')  ! cb 4/9/15 writing restart output at end of simulation if RSOC='ON'
+
+if(.not.restart_in)then
 IOPENFISH=3
 IF(ENVIRPC  == "      ON")CALL ENVIRP
 IF(HABTATC  == "      ON")call fishhabitat(iopenfish)                                         ! FINAL OUTPUT FOR ENVIR PERFORMANCE
+endif
+
 CALL ENDSIMULATION
   !IF (WAIT_FOR_INFLOW_RESULTS) THEN                                                                                     !SR 11/26/19
   !  DEALLOCATE (WAIT_TYPE, WAIT_INDEX, FILEDIR)                                                                         !SR 11/26/19
@@ -1580,6 +1741,8 @@ CALL ENDSIMULATION
   IF(CLOSEC=='      ON' .AND. END_RUN)THEN
   CALL EXITDIALOG(DLG,TEXT)
   ELSE
+  if(error_open)TEXT  = 'W2 error - see w2.err. Execution stopped at '//CCTIME(1:2)//':'//CCTIME(3:4)//':'//CCTIME(5:6)//' on '//CDATE(5:6)//'/'//CDATE(7:8)//'/'        &
+                                   //CDATE(3:4)            ! SW 6/30/2025
   CALL STOP_W2 (DLG,TEXT)
   ENDIF
   RETURN

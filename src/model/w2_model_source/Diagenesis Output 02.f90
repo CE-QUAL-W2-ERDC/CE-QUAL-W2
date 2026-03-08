@@ -49,45 +49,53 @@ Module CEMAOutputRoutines
         
         If(WriteCEMAMFTSedFlx)Then
             
-            Write(CEMASedFlxFilN4,'("SOD(gO2/m2/d),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,4),  SegNumI = 1, IMX),(KFSFAV(SegNumI,1), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN5,'("POCG1(g/m3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')  JDAY,(C2SF(KBI(SegNumI),SegNumI,19), SegNumI = 1, IMX),(KFSFAV(SegNumI,2), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN6,'("POCG2(g/m3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')  JDAY,(C2SF(KBI(SegNumI),SegNumI,20), SegNumI = 1, IMX),(KFSFAV(SegNumI,3), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN7,'("JC(gC/m2/d),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')           JDAY,(KFSF(KBI(SegNumI),SegNumI,7),  SegNumI = 1, IMX),(KFSFAV(SegNumI,4), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN8,'("JN(gN/m2/d),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')           JDAY,(KFSF(KBI(SegNumI),SegNumI,8),  SegNumI = 1, IMX),(KFSFAV(SegNumI,5), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN9,'("PONG1(g/m3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')  JDAY,(C2SF(KBI(SegNumI),SegNumI,22), SegNumI = 1, IMX),(KFSFAV(SegNumI,6), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN10,'("PONG2(g/m3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))') JDAY,(C2SF(KBI(SegNumI),SegNumI,23), SegNumI = 1, IMX),(KFSFAV(SegNumI,7), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN4,'("SOD(gO2m-2d-1),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,4),  SegNumI = 1, IMX),(KFSFAV(SegNumI,1), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN5,'("POCG1(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')  JDAY,(C2SF(KBI(SegNumI),SegNumI,19), SegNumI = 1, IMX),(KFSFAV(SegNumI,2), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN6,'("POCG2(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')  JDAY,(C2SF(KBI(SegNumI),SegNumI,20), SegNumI = 1, IMX),(KFSFAV(SegNumI,3), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN7,'("JC(gCm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')           JDAY,(KFSF(KBI(SegNumI),SegNumI,7),  SegNumI = 1, IMX),(KFSFAV(SegNumI,4), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN8,'("JN(gNm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')           JDAY,(KFSF(KBI(SegNumI),SegNumI,8),  SegNumI = 1, IMX),(KFSFAV(SegNumI,5), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN9,'("PONG1(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')  JDAY,(C2SF(KBI(SegNumI),SegNumI,22), SegNumI = 1, IMX),(KFSFAV(SegNumI,6), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN10,'("PONG2(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))') JDAY,(C2SF(KBI(SegNumI),SegNumI,23), SegNumI = 1, IMX),(KFSFAV(SegNumI,7), SegNumI = 1, IMX)
             
-            Write(CEMASedFlxFilN11,'("JCH4(gO2/m2/d),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,10), SegNumI = 1, IMX),(KFSFAV(SegNumI,8),  SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN12,'("JNH4(gN/m2/d),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,14), SegNumI = 1, IMX),(KFSFAV(SegNumI,9),  SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN13,'("JNO3(gN/m2/d),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,15), SegNumI = 1, IMX),(KFSFAV(SegNumI,10), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN14,'("JPO4(gP/m2/d), ,",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,16), SegNumI = 1, IMX),(KFSFAV(SegNumI,11), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN11,'("JCH4(gO2m-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,10), SegNumI = 1, IMX),(KFSFAV(SegNumI,8),  SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN12,'("JNH4(gNm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,14), SegNumI = 1, IMX),(KFSFAV(SegNumI,9),  SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN13,'("JNO3(gNm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,15), SegNumI = 1, IMX),(KFSFAV(SegNumI,10), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN14,'("JPO4(gPm-2d-1),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,16), SegNumI = 1, IMX),(KFSFAV(SegNumI,11), SegNumI = 1, IMX)
             
-            Write(CEMASedFlxFilN15,'("POPG1(g/m3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,25), SegNumI = 1, IMX),(KFSFAV(SegNumI,12), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN16,'("POPG2(g/m3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,26), SegNumI = 1, IMX),(KFSFAV(SegNumI,13), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN15,'("POPG1(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,25), SegNumI = 1, IMX),(KFSFAV(SegNumI,12), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN16,'("POPG2(gm-3),",f12.4,",",<IMX>(f12.4,","),<IMX>(f12.4,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,26), SegNumI = 1, IMX),(KFSFAV(SegNumI,13), SegNumI = 1, IMX)
             
-            Write(CEMASedFlxFilN17,'("CSOD(gO2/m2/d),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,5), SegNumI = 1, IMX),(KFSFAV(SegNumI,14), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN18,'("NSOD(gO2/m2/d),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,6), SegNumI = 1, IMX),(KFSFAV(SegNumI,15), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN19,'("JP(gP/m2/d),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')            JDAY,(KFSF(KBI(SegNumI),SegNumI,9), SegNumI = 1, IMX),(KFSFAV(SegNumI,16), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN17,'("CSOD(gO2m-2d-1),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,5), SegNumI = 1, IMX),(KFSFAV(SegNumI,14), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN18,'("NSOD(gO2m-2d-1),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')JDAY,(KFSF(KBI(SegNumI),SegNumI,6), SegNumI = 1, IMX),(KFSFAV(SegNumI,15), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN19,'("JP(gPm-2d-1),",f12.4,",",<IMX>(f10.4,","),<IMX>(f10.4,","))')            JDAY,(KFSF(KBI(SegNumI),SegNumI,9), SegNumI = 1, IMX),(KFSFAV(SegNumI,16), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN20,'("H1(m),",f12.4,",",<IMX>(f10.4,","))')JDAY,(SD_AerLayerThick(SegNumI), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN21,'("Temperature_KB_Layer1(C),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,15), SegNumI = 1, IMX)
             Write(CEMASedFlxFilN22,'("Temperature_KB_Layer2(C),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,16), SegNumI = 1, IMX)
             
-            Write(CEMASedFlxFilN23,'("NO3PorewaterAerobic_KB_Layer1(mgN/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,3), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN24,'("NO3PorewaterAnaerobic_KB_Layer2(mgN/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,4), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN25,'("NH3PorewaterAerobic_KB_Layer1(mgN/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,1), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN26,'("NH3PorewaterAnaerobic_KB_Layer2(mgN/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,2), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN27,'("PO4PorewaterAerobic_KB_Layer1(mgP/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,5), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN28,'("PO4PorewaterAnaerobic_KB_Layer2(mgP/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,6), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN29,'("SO4PorewaterAerobic_KB_Layer1(mgS/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,9), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN30,'("SO4PorewaterAnaerobic_KB_Layer2(mgS/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,10), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN23,'("NO3PorewaterAerobic_KB_Layer1(mgNL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,3), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN24,'("NO3PorewaterAnaerobic_KB_Layer2(mgNL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,4), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN25,'("NH3PorewaterAerobic_KB_Layer1(mgNL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,1), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN26,'("NH3PorewaterAnaerobic_KB_Layer2(mgNL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,2), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN27,'("PO4PorewaterAerobic_KB_Layer1(mgPL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,5), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN28,'("PO4PorewaterAnaerobic_KB_Layer2(mgPL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,6), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN29,'("SO4PorewaterAerobic_KB_Layer1(mgSL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,9), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN30,'("SO4PorewaterAnaerobic_KB_Layer2(mgSL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,10), SegNumI = 1, IMX)
 
-            Write(CEMASedFlxFilN31,'("FEIIPorewaterAerobic_KB_Layer1(mgFe/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,30), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN32,'("FEIIPorewaterAnaerobic_KB_Layer2(mgFe/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,31), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN33,'("MnIIPorewaterAerobic_KB_Layer1(mgMn/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,34), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN34,'("MnIIPorewaterAnaerobic_KB_Layer2(mgMn/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,35), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN35,'("CH4PorewaterAerobic_KB_Layer1(mgO2/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,7), SegNumI = 1, IMX)
-            Write(CEMASedFlxFilN36,'("CH4PorewaterAnaerobic_KB_Layer2(mgO2/L),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,8), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN31,'("FEIIPorewaterAerobic_KB_Layer1(mgFeL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,30), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN32,'("FEIIPorewaterAnaerobic_KB_Layer2(mgFeL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,31), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN33,'("MnIIPorewaterAerobic_KB_Layer1(mgMnL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,34), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN34,'("MnIIPorewaterAnaerobic_KB_Layer2(mgMnL-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,35), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN35,'("CH4PorewaterAerobic_KB_Layer1(mgO2L-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,7), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN36,'("CH4PorewaterAnaerobic_KB_Layer2(mgO2L-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,8), SegNumI = 1, IMX)
 
+            Write(CEMASedFlxFilN37,'("pHPorewaterAerobic_KB_Layer1,",f10.3,",",<IMX>(f10.3,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,17), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN38,'("pHPorewaterAnaerobic_KB_Layer2,",f10.3,",",<IMX>(f10.3,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,18), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN39,'("SulfidePorewaterAerobic_KB_Layer1(mgO2L-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,11), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN40,'("SulfidePorewaterAnaerobic_KB_Layer2(mgO2L-1),",f10.3,",",<IMX>(f10.2,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,12), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN41,'("TransferVelocitySedimentLayer1_to_Water(md-1),",f10.3,",",<IMX>(f10.5,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,38), SegNumI = 1, IMX)
+            !Write(CEMASedFlxFilN42,'("TransferVelocitySedimentLayer1_to_Layer2(md-1),",f10.3,",",A,",",<IMX>(f10.5,","),A,",",<IMX>(f10.5,","))')JDAY,'SD_KL12',(C2SF(KBI(SegNumI),SegNumI,39), SegNumI = 1, IMX),'SD_W12',(C2SF(KBI(SegNumI),SegNumI,40), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN42,'("TransferVelocitySedimentLayer1_to_Layer2_KL12(md-1),",f10.3,",",<IMX>(f10.5,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,39), SegNumI = 1, IMX)
+            Write(CEMASedFlxFilN43,'("TransferVelocitySedimentLayer1_to_Layer2_W12(md-1),", f10.3,",",<IMX>(f10.5,","))')JDAY,(C2SF(KBI(SegNumI),SegNumI,40), SegNumI = 1, IMX)
             IF(Bubbles_Calculation) Call CEMATempOutput
 	        
         End If
@@ -114,12 +122,12 @@ Module CEMAOutputRoutines
         ENDDO
         
         
-        nGas=2 ! CH4 write
-        !Write(CEMASedFlxFilN8,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
-        Write(CEMASedFlxFilN8,'("DissolvedCH4(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
-        nGas=1 ! H2S write
-        !Write(CEMASedFlxFilN9,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
-        Write(CEMASedFlxFilN9,'("DissolvedH2S(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
+        !nGas=2 ! CH4 write
+        !!Write(CEMASedFlxFilN8,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
+        !Write(CEMASedFlxFilN8,'("DissolvedCH4(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
+        !nGas=1 ! H2S write
+        !!Write(CEMASedFlxFilN9,'(f8.2,<IMX>f10.2)')JDAY,(TConc(nGas,SegNumI), SegNumI = 1, IMX)
+        !Write(CEMASedFlxFilN9,'("DissolvedH2S(mg/l),",f10.3,",",<IMX>(f10.2,","))')JDAY,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), SegNumI = 1, IMX)
 
         !Do nGas = 1, 4
         !    If(nGas == 1)Write(CEMAOutFilN6,'("H2S Concentration (gm/m�")')
@@ -129,7 +137,7 @@ Module CEMAOutputRoutines
         !    Write(CEMAOutFilN6,'(<IMX>f10.3)')(DissolvedGasSediments(nGas,SegNumI), SegNumI = 1, IMX)
         !End Do !nGas
         DO SegNumI=1,IMX
-            Write(CEMAOutFilN6,'(f12.4,",",i5,","<IMX>(f12.4,","))')JDAY,SegNumI,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), nGas = 1, 4)
+            Write(CEMAOutFilN4,'(f12.4,",",i5,","<IMX>(f12.4,","))')JDAY,SegNumI,(DissolvedGasSediments(nGas,KB(SegNumI),SegNumI), nGas = 1, 4)
         ENDDO
         
         !Write(CEMAOutFilN3,'("Gas Release to Atmosphere at JDAY = ",f8.2)')JDAY
@@ -146,7 +154,7 @@ Module CEMAOutputRoutines
         ENDDO
         
         DO JW=1,NWB
-        Write(CEMAOutFilBub,'(F12.4,",",I5,",",6(E12.5,","))')JDAY,JW,(BubbleRelWB(JW,J),J=1,4), GasReleaseCH4/1000.    !,GasReleaseCO2/1000.   ! SW 7/1/2017 BubbleRelWB kg  GasReleaseCH4 kg C
+        Write(CEMAOutFilBub,'(F12.4,",",I5,",",6(E12.5,","))')JDAY,JW,(BubbleRelWB(JW,J),J=1,4), GasReleaseCH4/1000.   !,GasReleaseCO2/1000.   ! SW 7/1/2017 BubbleRelWB kg  GasReleaseCH4 kg C
         END DO
         
         !Write(CEMAOutFilN4,'(<5>f10.3)')JDAY,(BRRateAGasNet(5, nGas), nGas = 1, 4)
