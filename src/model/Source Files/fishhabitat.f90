@@ -53,7 +53,7 @@ if(restart_in)then
         JDAY1=0.0
         REWIND (FISHHABFN)
         READ   (FISHHABFN,'(///)')
-        DO I=1,IFISH
+        DO j=1,IFISH
         READ(FISHHABFN,*)
         ENDDO
         READ(FISHHABFN,'(//)',END=106)
@@ -77,7 +77,7 @@ if(restart_in)then
          JDAY1=0.0
          REWIND (JWFILE)
         READ   (JWFILE,'(///)')
-        DO I=1,IFISH
+        DO j=1,IFISH
         READ(JWFILE,*)
         ENDDO
         READ(JWFILE,'(//)',END=110)
@@ -100,7 +100,7 @@ if(restart_in)then
             JDAY1=0.0
             REWIND (JBFILE)
             READ   (JBFILE,'(///)')
-            DO I=1,IFISH
+            DO j=1,IFISH
             READ(JBFILE,*)
             ENDDO
             READ(JBFILE,'(//)',END=111)
@@ -116,7 +116,9 @@ if(restart_in)then
         if(oxygen_demand)then
             open(FISHHABFN+1,file=conavg,POSITION='APPEND')
             REWIND (FISHHABFN+1)
-            READ   (FISHHABFN+1,'(//)')
+            do j=1,ifish+5
+            READ   (FISHHABFN+1,*)
+            enddo
             DO WHILE (JDAY1 < JDAY)
             READ (FISHHABFN+1,'(F10.0)',END=107) JDAY1
             END DO
@@ -124,7 +126,9 @@ if(restart_in)then
             107     JDAY1=0.0
             open(FISHHABFN+2,file=consurf,POSITION='APPEND')
             REWIND (FISHHABFN+2)
-            READ   (FISHHABFN+2,'(//)')
+            do j=1,ifish+5
+            READ   (FISHHABFN+2,*)
+            enddo
             DO WHILE (JDAY1 < JDAY)
             READ (FISHHABFN+2,'(F10.0)',END=108) JDAY1
             END DO
@@ -135,7 +139,9 @@ if(restart_in)then
                 IF (SEDIMENT_CALC(JJW))then
                 open(FISHHABFN+3,file=consod,POSITION='APPEND')
                 REWIND (FISHHABFN+3)
-                READ   (FISHHABFN+3,'(/)')
+                do j=1,ifish+5
+                READ   (FISHHABFN+3,*)
+                enddo
                 DO WHILE (JDAY1 < JDAY)
                 READ (FISHHABFN+3,'(F10.0)',END=109) JDAY1
                 END DO

@@ -113,15 +113,15 @@ REAL(R8):: W1,W2,W3, DUMMY
                 C2(K,I,CN(1:NAC)) = C1(K,DHS(JB),CN(1:NAC))                                   ! moved                 !SR 11/30/2021
                 H2(K,I)           = H1(K,I)                                                   ! might be needed       !SR 11/30/2021
                 BH2(K,I)          = BH1(K,I)                                                  ! might be needed       !SR 11/30/2021
-                RHO(K,I)          = DENSITY(T1(K,I),MAX(TDS(K,I),0.0),MAX(TISS(K,I),0.0))     ! can't hurt            !SR 11/30/2021
+                RHO(K,I)          = DENSITY(T1(K,I),DMAX1(TDS(K,I),0.0D0),DMAX1(TISS(K,I),0.0D0))     ! can't hurt    !SR 11/30/2021
               END DO                              ! didn't bother with sed vars, cssk, and a few others for now       !SR 11/30/2021
                         END DO
 
           ! DO I=DS(JB)-1,DS(JB)                                                                                      !SR 11/30/2021
             DO I=CUS(JB)-1,DS(JB)                 ! do this after H1 and BH1 are updated for all relevant segs above  !SR 11/30/2021
               DO K=KT,KB(I)                                                                                           !SR 11/30/2021
-                AVHR(K,I) =  H1(K,I)+(H1(K,I+1) -H1(K,I)) /(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                         !SR 11/30/2021
-                BHR1(K,I) = BH1(K,I)+(BH1(K,I+1)-BH1(K,I))/(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                         !SR 11/30/2021
+                AVHR(K,I) =  H1(K,I)+(H1(K,I+1) -H1(K,I))*DLX(I) /(DLX(I)+DLX(I+1))                         !SR 11/30/2021
+                BHR1(K,I) = BH1(K,I)+(BH1(K,I+1)-BH1(K,I))*DLX(I)/(DLX(I)+DLX(I+1))                         !SR 11/30/2021
                 IF (CONSTRICTION(K,I) .AND. BHR1(K,I) > BCONSTRICTION(I)*H1(K,I)) THEN                                !SR 11/30/2021
                   BHR1(K,I) = BCONSTRICTION(I)*H1(K,I)                                                                !SR 11/30/2021
                 END IF                                                                                                !SR 11/30/2021
@@ -261,8 +261,8 @@ REAL(R8):: W1,W2,W3, DUMMY
         IF (SNAPSHOT(JW)) WRITE (SNP(JW),'(/1X,13("*"),1X,A,I0,A,F0.3,A,I0,1X,A,I0,13("*"))') '   Add layer ',KT-1,&
                                                         ' at Julian day = ',JDAY,'   NIT = ',NIT,' IZMIN =',IZMIN(JW)   ! SW 1/23/06
         WARNING_OPEN = .TRUE.
-        WRITE (WRN,'(/1X,13("*"),1X,A,I0,A,F0.3,A,I0,1X,A,I0,13("*"))') '   Add layer ',KT-1,&
-                                                        ' at Julian day = ',JDAY,'   NIT = ',NIT,' IZMIN =',IZMIN(JW)   ! SW 1/23/06
+        WRITE (WRN,'(/1X,13("*"),1X,A,I0,A,F0.3,A,I0,1X,A,I0,A,I5,1x,13("*"))') '   Add layer ',KT-1,&
+                                                        ' at Julian day = ',JDAY,'   NIT = ',NIT,' IZMIN =',IZMIN(JW),' Waterbody =',JW   ! SW 1/23/06
 
 !****** Variable initialization
 
@@ -363,7 +363,7 @@ REAL(R8):: W1,W2,W3, DUMMY
             CD(KT+1,I,CDN(1:NACD(JW),JW)) = 0.0
             CSSK(KT+1,I,CN(1:NAC))=0.0  ! CB 5/15/06
             KF(KT+1,I,KFCN(1:NAF(JW),JW))  = 0.0   ! moved into IF statement on 11/16/2022 SW
-            KFS(KT+1,I,KFCN(1:NAF(JW),JW)) = 0.0  
+            KFS(KT+1,I,KFCN(1:NAF(JW),JW)) = 0.0
             ENDIF                       ! CB 5/15/06
             DO JE=1,NEP
               if(kt < kbi(i))then    ! CB 4/28/06
@@ -416,10 +416,10 @@ REAL(R8):: W1,W2,W3, DUMMY
             END DO
           END DO
           DO I=IU-1,ID
-            AVHR(KT+1,I) =   H1(KT+1,I) +(H1(KT+1,I+1) -H1(KT+1,I)) /(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                  !SW 07/29/04 (H1(KT+1,I+1) +H1(KT+1,I))*0.5
-            AVHR(KT,I)   =   H1(KT,I)   +(H1(KT,I+1)   -H1(KT,I))   /(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                  !SW 07/29/04 (H1(KT,I+1)   +H1(KT,I))*0.5
-            BHR1(KT,I)   =   BH1(KT,I)  +(BH1(KT,I+1)  -BH1(KT,I))  /(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                  !SW 07/29/04  (BH1(KT,I+1)  +BH1(KT,I))*0.5
-            BHR1(KT+1,I) =   BH1(KT+1,I)+(BH1(KT+1,I+1)-BH1(KT+1,I))/(0.5*(DLX(I)+DLX(I+1)))*0.5*DLX(I)                  !SW 07/29/04  (BH1(KT+1,I+1)+BH1(KT+1,I))*0.5  
+            AVHR(KT+1,I) =   H1(KT+1,I) +(H1(KT+1,I+1) -H1(KT+1,I))*DLX(I) /(DLX(I)+DLX(I+1))                  !SW 07/29/04 (H1(KT+1,I+1) +H1(KT+1,I))*0.5
+            AVHR(KT,I)   =   H1(KT,I)   +(H1(KT,I+1)   -H1(KT,I))*DLX(I)   /(DLX(I)+DLX(I+1))                  !SW 07/29/04 (H1(KT,I+1)   +H1(KT,I))*0.5
+            BHR1(KT,I)   =   BH1(KT,I)  +(BH1(KT,I+1)  -BH1(KT,I))*DLX(I)  /(DLX(I)+DLX(I+1))                  !SW 07/29/04  (BH1(KT,I+1)  +BH1(KT,I))*0.5
+            BHR1(KT+1,I) =   BH1(KT+1,I)+(BH1(KT+1,I+1)-BH1(KT+1,I))*DLX(I) /(DLX(I)+DLX(I+1))                 !SW 07/29/04  (BH1(KT+1,I+1)+BH1(KT+1,I))*0.5  
                              IF(CONSTRICTION(KT,I))THEN    ! SW 6/26/2018 Valid for all K
                                         IF(BHR1(KT,I) > BCONSTRICTION(I)*H1(KT,I))BHR1(KT,I)= BCONSTRICTION(I)*H1(KT,I)
                                         IF(BHR1(KT+1,I) > BCONSTRICTION(I)*H1(KT+1,I))BHR1(KT+1,I)= BCONSTRICTION(I)*H1(KT+1,I)
@@ -458,7 +458,7 @@ REAL(R8):: W1,W2,W3, DUMMY
                 IF(DXI(JW)>=0.0)THEN
                         DX(KT,I) = DXI(JW)
                 ELSE
-                        DX(KT,I) = ABS(U(KT,I))*ABS(DXI(JW))*H(K,JW)    ! SW 8/2/2017
+                        DX(KT,I) = ABS(U(KT,I))*ABS(DXI(JW))*H(KT,JW)    ! SW 8/2/2017
                 ENDIF
                 IF (INTERNAL_WEIR(KT,I)) DX(KT,I) = 0.0
           END DO
@@ -509,15 +509,36 @@ REAL(R8):: W1,W2,W3, DUMMY
                 iF(KBI(I) < KB(I))THEN
                 BKT(I)=BH1(KT,I)/(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))    ! SW 1/23/06  SR 1/2024
                 DEPTHB(KT,I)= H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)    ! SW 1/23/06 SR 1/2024
-                DEPTHM(KT,I)=(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*0.5D0    ! SW 1/23/06
-                IF(I<=DS(JB))THEN  ! SW 8/6/2018
-                  AVHR(KT,I)= H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)   +(H1(KT,I+1)-(EL(KBI(I)+1,I+1)-EL(KB(I)+1,I+1))/COSA(JB)  &
-                  -H1(KT,I)+(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*DLX(I)/(DLX(I)+DLX(I+1))   
-                ELSE
-                    AVHR(KT,I)=AVHR(KT,I-1)
-                ENDIF
+                DEPTHM(KT,I)=(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*0.5D0    ! SW 1/23/06 
+                !IF(I<=DS(JB))THEN  ! SW 8/6/2018
+                !  AVHR(KT,I)= H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)   +(H1(KT,I+1)-(EL(KBI(I)+1,I+1)-EL(KB(I)+1,I+1))/COSA(JB)  &
+                !  -H1(KT,I)+(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*DLX(I)/(DLX(I)+DLX(I+1))   
+                !ELSE
+                !    AVHR(KT,I)=AVHR(KT,I-1)
+                !ENDIF
                 ! SW 1/23/06
-                end if
+                END IF
+                IF (I <= DS(JB)) THEN          ! SR 7/2024
+                IF (KBI(I) < KB(I) .OR. KBI(I+1) < KB(I+1)) THEN
+                  HTMP1 = H1(KT,I)
+                  HTMP2 = H1(KT,I+1)
+                  IF (KBI(I)   < KB(I))   HTMP1 = H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)
+                  IF (KBI(I+1) < KB(I+1)) HTMP2 = H1(KT,I+1)                                     &
+                                                 -(EL(KBI(I+1)+1,I+1)-EL(KB(I+1)+1,I+1))/COSA(JB)
+                  AVHR(KT,I) = HTMP1 +(HTMP2-HTMP1)*DLX(I)/(DLX(I)+DLX(I+1))
+                  !IF (CONSTRICTION(KT,I)) THEN
+                  !  IF (SPLR(KT,I) > BCONSTRICTION(I)+2.0D0*AVHR(KT,I))                          &
+                  !                                 SPLR(KT,I) = BCONSTRICTION(I)+2.0D0*AVHR(KT,I)
+                  !END IF
+                END IF
+              ELSE
+                IF (KBI(ID+1) < KB(ID+1)) THEN
+                  AVHR(KT,ID+1) = H1(KT,ID+1)-(EL(KBI(ID+1)+1,ID+1)-EL(KB(ID+1)+1,ID+1))/COSA(JB)
+                ELSE
+                  AVHR(KT,ID+1) = H1(KT,ID+1)
+                END IF
+              END IF
+
             ENDDO
         DO I=US(JB)-1,DS(JB)+1   ! SW 1/23/06
          DO K=KBMIN(I)+1,KB(I)
@@ -731,8 +752,8 @@ REAL(R8):: W1,W2,W3, DUMMY
             ONE_LAYER(I) = KTWB(JW) == KB(I)
           END DO
           NTACMX = MAX(NTAC,NTACMX)
-        END DO
-        CALL INTERPOLATION_MULTIPLIERS
+        END DO    ! JB loop
+        CALL INTERPOLATION_MULTIPLIERS   
 
 !****** Additional layers
 
@@ -751,7 +772,7 @@ REAL(R8):: W1,W2,W3, DUMMY
       DO WHILE (SUB_LAYER)
         IF (SNAPSHOT(JW)) WRITE (SNP(JW),'(/1X,13("*"),1X,A,I0,A,F0.3,A,I0,1X,A,I0,1x,13("*"))') 'Subtract layer ',&
         KT,' at Julian day = ', JDAY,' NIT = ',NIT,' IZMIN =',IZMIN(JW)      ! SW 1/23/06   
-        WRITE (WRN,'(/1X,13("*"),1X,A,I0,A,F0.3,A,I0,1X,A,I0,1x,13("*"))') 'Subtract layer ',KT,' at Julian day = ', JDAY,' NIT = ',NIT,' IZMIN =',IZMIN(JW)   
+        WRITE (WRN,'(/1X,13("*"),1X,A,I0,A,F0.3,A,I0,1X,A,I0,1x,A,i4,1x,13("*"))') 'Subtract layer ',KT,' at Julian day = ', JDAY,' NIT = ',NIT,' IZMIN =',IZMIN(JW),' WaterBody = ',JW   
 
 !****** Variable initialization
 
@@ -996,9 +1017,30 @@ REAL(R8):: W1,W2,W3, DUMMY
                 BKT(I)=BH1(KT,I)/(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))    ! SW 1/23/06   SR 1/2024
                 DEPTHB(KT,I)=H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)    ! SW 1/23/06
                 DEPTHM(KT,I)=(H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*0.5D0     ! SW 1/23/06
-                AVHR(KT,I)= H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)   +(H1(KT,I+1)-(EL(KBI(I)+1,I+1)-EL(KB(I)+1,I+1))/COSA(JB)   &      ! SR 1/2024
-                        -H1(KT,I)+(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*DLX(I)/(DLX(I)+DLX(I+1))                                                                           ! SW 1/23/06
+                !AVHR(KT,I)= H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)   +(H1(KT,I+1)-(EL(KBI(I)+1,I+1)-EL(KB(I)+1,I+1))/COSA(JB)   &      ! SR 1/2024
+                !        -H1(KT,I)+(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB))*DLX(I)/(DLX(I)+DLX(I+1))                                                                           ! SW 1/23/06
                 END IF
+                IF (I <= DS(JB)) THEN   ! SR 7/2024
+                IF (KBI(I) < KB(I) .OR. KBI(I+1) < KB(I+1)) THEN
+                  HTMP1 = H1(KT,I)
+                  HTMP2 = H1(KT,I+1)
+                  IF (KBI(I)   < KB(I))   HTMP1 = H1(KT,I)-(EL(KBI(I)+1,I)-EL(KB(I)+1,I))/COSA(JB)
+                  IF (KBI(I+1) < KB(I+1)) HTMP2 = H1(KT,I+1)                                     &
+                                                 -(EL(KBI(I+1)+1,I+1)-EL(KB(I+1)+1,I+1))/COSA(JB)
+                  AVHR(KT,I) = HTMP1 +(HTMP2-HTMP1)*DLX(I)/(DLX(I)+DLX(I+1))
+                  !IF (CONSTRICTION(KT,I)) THEN
+                  !  IF (SPLR(KT,I) > BCONSTRICTION(I)+2.0D0*AVHR(KT,I))                          &
+                  !                                 SPLR(KT,I) = BCONSTRICTION(I)+2.0D0*AVHR(KT,I)
+                  !END IF
+                END IF
+              ELSE
+                IF (KBI(ID+1) < KB(ID+1)) THEN
+                  AVHR(KT,ID+1) = H1(KT,ID+1)-(EL(KBI(ID+1)+1,ID+1)-EL(KB(ID+1)+1,ID+1))/COSA(JB)
+                ELSE
+                  AVHR(KT,ID+1) = H1(KT,ID+1)
+                END IF
+              END IF
+
             ENDDO
 
         DO I=US(JB),DS(JB)   ! SW 1/23/06   11/13/07   US(JB)-1,DS(JB)+1
@@ -1043,7 +1085,7 @@ REAL(R8):: W1,W2,W3, DUMMY
             IF (KB(I)-KT < NL(JB)-1) IUT = I+1
             ONE_LAYER(I) = KTWB(JW) == KB(I)
           END DO
-          
+
 !******** Fail if a main branch (JB=1 or JB=JBDN(JW)) has no active segments.  SR added the JBDN criterion.           !SR 11/30/2021
           IF (IUT > DS(JB) .AND. (JB == 1 .OR. JB == JBDN(JW))) THEN          !SR-- combined two lines and modified   !SR 11/30/2021
             WRITE (W2ERR,'(A,I0/A,F0.2,2(A,I0))') 'Fatal error - insufficient segments in branch ',JB,'Julian day = ',JDAY,      &    ! SEE NEW CODE BELOW
@@ -1078,7 +1120,7 @@ REAL(R8):: W1,W2,W3, DUMMY
             END DO
             NTACMN = MIN(NTAC,NTACMN)                                                                                 !SR 11/30/2021
             CYCLE
-            
+
        ! Go to 230
           END IF
 

@@ -997,6 +997,7 @@ Module CEMASedimentDiagenesis
 			SD_JC_O2equiv = max(SD_JC_O2equiv,1.0E-10)
       !
       ! CH41 and CH42
+            CO2ProducedCon2L2=0.0;CO2ProducedCon1L1=0.0   ! sw 7/24/2024
       If (SD_SO42 <= SD_Sulfate_CH4_H2S) Then   
 				!gp freshwater methane production, no changes to original code 
 				!CSODMAX Equations 10.28 and 10.30 
@@ -1057,7 +1058,6 @@ Module CEMASedimentDiagenesis
 				!CO2 Produced = 0.5*(12+32)/32 = 0.6875
 				CO2ProducedSrc1L1 = SD_CSOD*0.6875    !g CO2/m�/d
 				CO2ProducedCon1L1 = CO2ProducedSrc1L1*SD_tc/SD_H1   !g CO2/m�/d*d/m = g CO2/m�
-				
 			Else 
 				!
 				!gp saltwater sulfide production by C diagenesis based on DiToro (2001) Appendix B 
@@ -1275,7 +1275,7 @@ Module CEMASedimentDiagenesis
     !
     !If (SD_SO4 <= SD_Sulfate_CH4_H2S) Then
     If (SD_SO42 <= SD_Sulfate_CH4_H2S) Then         ! 7/26/18
-            
+            SD1_Sulfide=SD_HS(1);SD2_Sulfide=SD_HS(2)         ! SW 7/23/2024
     Else
       !Calculate H2S and HS- concentrations
 			!

@@ -37,7 +37,7 @@ USE GLOBAL;     USE NAMESC; USE GEOMC;  USE LOGICC; USE PREC;  USE SURFHE;  USE 
         END DO
 ! v3.5 deleted pumpback code from v3.2
         !
-        IF(wdz_multi(JB) .and. nstr(jb) > 0)THEN               ! cb 06/8/23  
+        IF(wdz_multi .and. nstr(jb) > 0)THEN               ! cb 06/8/23  
           CALL DOWNSTREAM_WITHDRAWAL_MULTI
         ELSE      
           DO JS=1,NSTR(JB)

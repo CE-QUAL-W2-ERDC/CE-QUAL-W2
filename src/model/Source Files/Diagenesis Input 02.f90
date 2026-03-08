@@ -16,7 +16,7 @@
     
     Logical SkipLoop, L_EXISTS       !, file_exists
     Character(256) MessageTemp
-    Character(72) SedFlxFolder, C_DIRSPEC
+    Character(72) C_DIRSPEC
     CHARACTER(20) :: ADUMMY   ! SW 2/2019
     
     integer monzz,dayzz,yearzz,ninp,JSKIP,STATUS
@@ -373,6 +373,142 @@
 1125 Continue     
     close(CEMAFilN)
     !
+    !
+    ! Fix the values here
+    NH4_NH3_Eqb_Const = 9.1
+    HS_H2S_Eqb_Const  = 9.0
+    HenryConst_NH3 = 0.0179
+    HenryConst_CH4 = 469.0 
+    HenryConst_H2S = 10.0
+    HenryConst_CO2 = 29.0
+    !
+    !Allocate other variablesnd 
+    ALLOCATE(CellArea(KMX,IMX))
+    IF(IncludeCEMASedDiagenesis) THEN
+      Allocate(CEMAMFT_RandC_RegN(IMX), CEMAMFT_InCond_RegN(IMX), MFTSedFlxVars(KMX,IMX,59), CEMA_SD_Vars(KMX,IMX,22))
+      Allocate(SD_NO3p2(2), SD_NH3p2(2), SD_NH3Tp2(2), SD_CH4p2(2), SD_PO4p2(2), SD_PO4Tp2(2),SD_PO4(2))
+	    Allocate(SD_HSp2(2),  SD_HSTp2(2))
+	    Allocate(SD_poc2(3),  SD_pon2(3), SD_pop2(3), SD_NH3Tp(2), SD_NO3p(2), SD_PO4Tp(2), SD_HSTp(2))
+	    Allocate(SD_fpon(3),  SD_fpoc(3), SD_kdiaPON(3), SD_ThtaPON(3), SD_kdiaPOC(3), SD_ThtaPOC(3))
+	    Allocate(SD_JPOC(3),  SD_JPON(3), SD_JPOP(3), SD_TDS(2))
+      Allocate(SD_EPOC(3),  SD_EPON(3), SD_EPOP(3))
+      Allocate(SD_Denit(2), SD_JDenit(2), SD_JO2NO3(2),SD_HS(2))   
+      IF(IncludeIron)         Allocate(SD_Fe2(2))
+      IF(IncludeManganese)    Allocate(SD_Mn2(2))
+	    Allocate(SD_kdiaPOP(3), SD_ThtaPOP(3), SD_NH3T(2), SD_FPOP(3))
+      Allocate(SD_pHValue(IMX))   
+	    Allocate(SD_AerLayerThick(IMX))
+	    IF(Bubbles_Calculation) THEN
+        Allocate(H2SDis(IMX), H2SGas(IMX), CH4Dis(IMX), CH4Gas(IMX))
+	      Allocate(NH4Dis(IMX), NH4Gas(IMX), CO2Dis(IMX), CO2Gas(IMX))
+        Allocate(BubbleRadiusSed(IMX),PresBubbSed(IMX), PresCritSed(IMX))
+	      Allocate(CgSed(IMX), C0Sed(IMX), CtSed(IMX))
+	      Allocate(TConc(NumGas,KMX,IMX), TConcP(NumGas,KMX,IMX), SConc(NumGas,KMX,IMX))
+	      Allocate(DissolvedGasSediments(NumGas,KMX,IMX))
+	      Allocate(CrackOpen(IMX), MFTBubbReleased(IMX), LastDiffVolume(IMX))
+	      Allocate(BottomTurbulence(IMX))
+        Allocate(FirstBubblesRelease(IMX,NumBubRelArr), BubblesReleaseAllValue(IMX,NumBubRelArr),BubbleRelWB(NWB,NumGas))    ! SW 7/1/2017
+        Allocate(BRRateAGasNet(IMX, NumGas))
+      END IF
+	    Allocate(SDPFLUX(NWB),SDNH4FLUX(NWB),SDNO3FLUX(NWB))
+    END IF    
+    
+    Return
+  End Subroutine
+    
+    
+  SUBROUTINE INIT_CEMA
+    USE CEMAVars; USE MAIN; USE GLOBAL, ONLY:DAY,DLT,IMX, WRN,W2ERR; Use GEOMC             !,MODDIR
+    Use SCREENC, ONLY: JDAY; USE IFPORT
+    use kernel32, only: CreateDirectory
+    IMPLICIT NONE    
+    CHARACTER(60) :: ADUMMY   ! SW 2/2019
+    CHARACTER (255) :: C_DIRSPEC
+    LOGICAL(4) :: Status, L_Exists
+    !character(256) :: MODDIRtest
+    
+    SD_tc=DLT/DAY         ! SW 10/16/2022   For first call
+    
+    IF(IncludeCEMASedDiagenesis) THEN
+        SD_NO3p2   = 0.d00; SD_NH3p2   = 0.d00; SD_NH3Tp2  = 0.d00;  SD_CH4p2 = 0.d00 
+        SD_PO4p2   = 0.d00; SD_PO4Tp2  = 0.d00; SD_HSp2    = 0.d00;  SD_HSTp2 = 0.d00 
+        SD_POC2    = 0.d00; SD_PON2    = 0.d00; SD_POP2    = 0.d00;  SD_NH3Tp = 0.d00 
+        SD_NO3p    = 0.d00; SD_PO4Tp   = 0.d00; SD_HSTp    = 0.d00 
+        SD_FPON    = 0.d00; SD_FPOC    = 0.d00; SD_kdiaPON = 0.d00;  SD_ThtaPON = 0.d00 
+        SD_kdiaPOC = 0.d00; SD_ThtaPOC = 0.d00 
+        SD_JPOC    = 0.d00; SD_JPON    = 0.d00; SD_JPOP    = 0.d00 
+        SD_EPOC    = 0.d00; SD_EPON    = 0.d00; SD_EPOP    = 0.d00
+        SD_Denit   = 0.d00; SD_JDenit  = 0.d00; SD_JO2NO3  = 0.d00
+        SD_PO4     = 0.d00; SD_FPOP    = 0.d00; SD_HS      = 0.d00 
+        !
+        IF(IncludeIron) THEN
+            SD_Fe2 = 0.d00
+        END IF
+        IF(IncludeManganese) THEN
+            SD_Mn2 = 0.d00
+        END IF
+        SD_kdiaPOP = 0.d00; SD_ThtaPOP = 0.d00; SD_NH3T = 0.d00
+        SD_AerLayerThick = 0.d00
+        !
+        IF(Bubbles_Calculation) THEN
+            H2SDis = 0.d00; H2SGas = 0.d00; CH4Dis = 0.d00; CH4Gas = 0.d00 
+            NH4Dis = 0.d00; NH4Gas = 0.d00; CO2Dis = 0.d00; CO2Gas = 0.d00 
+            BubbleRadiusSed = 0.d00; PresBubbSed = 0.d00; PresCritSed = 0.d00 
+            CgSed = 0.d00; C0Sed = 0.d00; CtSed = 0.d00; TConcP = 0.d00
+            LastDiffVolume = 0.d00
+            BubblesCarried = 0; BubblesLNumber = 0; BubblesStatus = 0
+            BubblesRadius = 0.d00; BubblesRiseV = 0.d00; BubblesGasConc = 0.d00
+            BubblesReleaseAllValue = 0.d00
+            BRVoluAGas = 0.d00; BRRateAGas = 0.d00; BRRateAGasNet = 0.d00
+            BottomTurbulence = 0.d00
+            DissolvedGasSediments = 0.d00
+            FirstTimeInBubbles  = .TRUE. 
+            FirstBubblesRelease = .TRUE. 
+            BubblesAtSurface    = .FALSE.
+        END IF
+        CEMAMFT_RandC_RegN = 0
+        CEMA_SD_Vars = 0.d00
+        SDPFLUX=0.0
+        SDNH4FLUX=0.0
+        SDNO3FLUX=0.0
+    END IF
+    !
+    IF(IncludeBedConsolidation) THEN
+        BedElevationLayer = 0.d00
+        BedConsolidRate = 0.d00
+        PorewaterRelRate = 0.d00
+        CEMASedConc = 0.d00
+        CEMACumPWRelease = 0.d00
+        CEMACumPWReleaseRate = 0.d00
+        CEMACumPWToRelease = 0.d00
+        CEMACumPWReleased = 0.d00
+        EndBedConsolidation = .FALSE.
+        BedConsolidationSeg = .FALSE.  ! cb 6/28/18
+        VOLCEMA = 0.d00
+        NumCEMAPWInst = 0
+        ApplyCEMAPWRelease = .FALSE.
+    END IF
+    !
+    IF(IncludeCEMASedDiagenesis .and. (.not. IncludeBedConsolidation)) THEN
+        EndBedConsolidation = .FALSE.
+        PorewaterRelRate = 0.d00
+    END IF
+    IF(IncludeCEMASedDiagenesis .OR. IncludeBedConsolidation) BedElevation = BedElevationInit
+    !
+    IF(.NOT.RESTART_IN)THEN
+        CellArea=0.0
+        IF(IncludeCEMASedDiagenesis) THEN
+            MFTSedFlxVars = 0.d00
+            BedPorosity = BedPorosityInit
+            IF(Bubbles_Calculation) THEN 
+                MFTBubbReleased = 0 
+                TConc = 0.d00; SConc = 0.d00
+                CrackOpen = .FALSE.; BubbleRelWB=0.0
+                GasReleaseCH4=0.0
+            END IF
+        END IF
+    ENDIF
+    
         IF (SedFlxFolder /= ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) <= 0) THEN   ! check if directory exists - create directory if necessary
             INQUIRE (DIRECTORY=TRIM(SedFlxFolder), DIRSPEC=C_DIRSPEC, EXIST=L_EXISTS)
             IF(.NOT.L_EXISTS)THEN
@@ -867,6 +1003,9 @@
                     BACKSPACE (CEMASedFlxFilN43)  
 140                 JDAY1 = 0.0                         
                     
+                    ! *** Still need restart files for Bubble Dynamics****
+                    
+                    
             ELSE    ! not restart
               
         IF (SedFlxFolder == ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) > 0) THEN
@@ -1149,138 +1288,55 @@
         END IF 
         Write(CEMASedFlxFilN43,'("Variable,JDAY,",<IMX>(i5,","))')(SegNumI, SegNumI = 1, IMX)             
         
-            ENDIF
             
-    END IF
-    !
-    ! Fix the values here
-    NH4_NH3_Eqb_Const = 9.1
-    HS_H2S_Eqb_Const  = 9.0
-    HenryConst_NH3 = 0.0179
-    HenryConst_CH4 = 469.0 
-    HenryConst_H2S = 10.0
-    HenryConst_CO2 = 29.0
-    !
-    !Allocate other variablesnd 
-    ALLOCATE(CellArea(KMX,IMX))
-    IF(IncludeCEMASedDiagenesis) THEN
-      Allocate(CEMAMFT_RandC_RegN(IMX), CEMAMFT_InCond_RegN(IMX), MFTSedFlxVars(KMX,IMX,59), CEMA_SD_Vars(KMX,IMX,22))
-      Allocate(SD_NO3p2(2), SD_NH3p2(2), SD_NH3Tp2(2), SD_CH4p2(2), SD_PO4p2(2), SD_PO4Tp2(2),SD_PO4(2))
-	    Allocate(SD_HSp2(2),  SD_HSTp2(2))
-	    Allocate(SD_poc2(3),  SD_pon2(3), SD_pop2(3), SD_NH3Tp(2), SD_NO3p(2), SD_PO4Tp(2), SD_HSTp(2))
-	    Allocate(SD_fpon(3),  SD_fpoc(3), SD_kdiaPON(3), SD_ThtaPON(3), SD_kdiaPOC(3), SD_ThtaPOC(3))
-	    Allocate(SD_JPOC(3),  SD_JPON(3), SD_JPOP(3), SD_TDS(2))
-      Allocate(SD_EPOC(3),  SD_EPON(3), SD_EPOP(3))
-      Allocate(SD_Denit(2), SD_JDenit(2), SD_JO2NO3(2),SD_HS(2))   
-      IF(IncludeIron)         Allocate(SD_Fe2(2))
-      IF(IncludeManganese)    Allocate(SD_Mn2(2))
-	    Allocate(SD_kdiaPOP(3), SD_ThtaPOP(3), SD_NH3T(2), SD_FPOP(3))
-      Allocate(SD_pHValue(IMX))   
-	    Allocate(SD_AerLayerThick(IMX))
 	    IF(Bubbles_Calculation) THEN
-        Allocate(H2SDis(IMX), H2SGas(IMX), CH4Dis(IMX), CH4Gas(IMX))
-	      Allocate(NH4Dis(IMX), NH4Gas(IMX), CO2Dis(IMX), CO2Gas(IMX))
-        Allocate(BubbleRadiusSed(IMX),PresBubbSed(IMX), PresCritSed(IMX))
-	      Allocate(CgSed(IMX), C0Sed(IMX), CtSed(IMX))
-	      Allocate(TConc(NumGas,KMX,IMX), TConcP(NumGas,KMX,IMX), SConc(NumGas,KMX,IMX))
-	      Allocate(DissolvedGasSediments(NumGas,KMX,IMX))
-	      Allocate(CrackOpen(IMX), MFTBubbReleased(IMX), LastDiffVolume(IMX))
-	      Allocate(BottomTurbulence(IMX))
-        Allocate(FirstBubblesRelease(IMX,NumBubRelArr), BubblesReleaseAllValue(IMX,NumBubRelArr),BubbleRelWB(NWB,NumGas))    ! SW 7/1/2017
-        Allocate(BRRateAGasNet(IMX, NumGas))
-      END IF
-	    Allocate(SDPFLUX(NWB),SDNH4FLUX(NWB),SDNO3FLUX(NWB))
+        
+        IF (SedFlxFolder == ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) > 0) THEN
+          Open(CEMAOutFilN1, File = "Diagenesis_Bubble1_BubRad_Cg.csv", STATUS='unknown')
+        ELSE
+          Open(CEMAOutFilN1, File = Trim(SedFlxFolder)//'\Diagenesis_Bubble1_BubRad_Cg.csv', STATUS='unknown')
     END IF    
+        Write(CEMAOutFilN1,'(A)')'JDAY,SegNumI,BubbleRadiusSed(mm),Cg_total_in_Bubble(g/m3),C0_total(g/m3),Ctotal(g/m3),CrackStatus'
     
-    Return
-  End Subroutine
+        IF (SedFlxFolder == ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) > 0) THEN
+          Open(CEMAOutFilN2, File = "Diagenesis_Bubble2_GasConc_at_Bottom_Layer.csv", STATUS='unknown')
+        ELSE
+          Open(CEMAOutFilN2, File = Trim(SedFlxFolder)//'\Diagenesis_Bubble2_GasConc_at_Bottom_Layer.csv', STATUS='unknown')
+        END IF   
+        Write(CEMAOutFilN2,'(A)')'JDAY,SegNumI,H2SConc(g/m3),CH4Conc(g/m3),NH3Conc(g/m3),CO2Conc(g/m3)'
+
+        IF (SedFlxFolder == ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) > 0) THEN
+          Open(CEMAOutFilN3, File = "Diagenesis_Bubble3_BubbbleGasReleaseToAtmosphereRate.csv", STATUS='unknown')
+        ELSE
+          Open(CEMAOutFilN3, File = Trim(SedFlxFolder)//'\Diagenesis_Bubble3_BubbleGasReleaseToAtmosphereRate.csv', STATUS='unknown')
+        END IF   
+        Write(CEMAOutFilN3,'(A)')'JDAY,SegNumI,BubRelRateH2SConc(gm/s),BubRelRateCH4(gm/s),BubRelRateNH3(gm/s),BubRelRateCO2(gm/s)'
+
+        IF (SedFlxFolder == ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) > 0) THEN
+          Open(CEMAOutFilBub, File = "Diagenesis_Bubble5_WaterBodySurfaceReleaseCumulative.csv", STATUS='unknown')
+        ELSE
+          Open(CEMAOutFilBub, File = Trim(SedFlxFolder)//'\Diagenesis_Bubble5_WaterBodySurfaceReleaseCumulative.csv', STATUS='unknown')
+        END IF   
+        Write(CEMAOutFilBub,'(A)')'JDAY,Waterbody,BubbleReleaseH2S(kg),BubbleReleaseCH4(kg C),BubbleReleaseNH3(kg),BubbleReleaseCO2(kg C),NonBubbleCH4GasRelease(kg C)'     !,OverallCO2GasRelease(kg C)
     
+        IF (SedFlxFolder == ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) > 0) THEN
+          Open(CEMAOutFilN4, File = "Diagenesis_Bubble4_DissGasSediments_BottomLayer.csv", STATUS='unknown')
+        ELSE
+          Open(CEMAOutFilN4, File = Trim(SedFlxFolder)//'\Diagenesis_Bubble4_DissGasSediments_BottomLayer.csv', STATUS='unknown')
+        END IF   
+        Write(CEMAOutFilN4,'(A)')'JDAY,SegNumI,DissH2SConc(gm/m3),DissCH4Conc(gm/m3),DissNH3Conc(gm/m3),DissCO2Conc(gm/m3)'
+        ENDIF
     
-  SUBROUTINE INIT_CEMA
-    USE CEMAVars; USE MAIN; USE GLOBAL, ONLY:DAY,DLT
-    IMPLICIT NONE
+            ENDIF
     
-    SD_tc=DLT/DAY         ! SW 10/16/2022   For first call
-    
-    IF(IncludeCEMASedDiagenesis) THEN
-        SD_NO3p2   = 0.d00; SD_NH3p2   = 0.d00; SD_NH3Tp2  = 0.d00;  SD_CH4p2 = 0.d00 
-        SD_PO4p2   = 0.d00; SD_PO4Tp2  = 0.d00; SD_HSp2    = 0.d00;  SD_HSTp2 = 0.d00 
-        SD_POC2    = 0.d00; SD_PON2    = 0.d00; SD_POP2    = 0.d00;  SD_NH3Tp = 0.d00 
-        SD_NO3p    = 0.d00; SD_PO4Tp   = 0.d00; SD_HSTp    = 0.d00 
-        SD_FPON    = 0.d00; SD_FPOC    = 0.d00; SD_kdiaPON = 0.d00;  SD_ThtaPON = 0.d00 
-        SD_kdiaPOC = 0.d00; SD_ThtaPOC = 0.d00 
-        SD_JPOC    = 0.d00; SD_JPON    = 0.d00; SD_JPOP    = 0.d00 
-        SD_EPOC    = 0.d00; SD_EPON    = 0.d00; SD_EPOP    = 0.d00
-        SD_Denit   = 0.d00; SD_JDenit  = 0.d00; SD_JO2NO3  = 0.d00
-        SD_PO4     = 0.d00; SD_FPOP    = 0.d00; SD_HS      = 0.d00 
-        !
-        IF(IncludeIron) THEN
-            SD_Fe2 = 0.d00
         END IF
-        IF(IncludeManganese) THEN
-            SD_Mn2 = 0.d00
-        END IF
-        SD_kdiaPOP = 0.d00; SD_ThtaPOP = 0.d00; SD_NH3T = 0.d00
-        SD_AerLayerThick = 0.d00
-        !
-        IF(Bubbles_Calculation) THEN
-            H2SDis = 0.d00; H2SGas = 0.d00; CH4Dis = 0.d00; CH4Gas = 0.d00 
-            NH4Dis = 0.d00; NH4Gas = 0.d00; CO2Dis = 0.d00; CO2Gas = 0.d00 
-            BubbleRadiusSed = 0.d00; PresBubbSed = 0.d00; PresCritSed = 0.d00 
-            CgSed = 0.d00; C0Sed = 0.d00; CtSed = 0.d00; TConcP = 0.d00
-            LastDiffVolume = 0.d00
-            BubblesCarried = 0; BubblesLNumber = 0; BubblesStatus = 0
-            BubblesRadius = 0.d00; BubblesRiseV = 0.d00; BubblesGasConc = 0.d00
-            BubblesReleaseAllValue = 0.d00
-            BRVoluAGas = 0.d00; BRRateAGas = 0.d00; BRRateAGasNet = 0.d00
-            BottomTurbulence = 0.d00
-            DissolvedGasSediments = 0.d00
-            FirstTimeInBubbles  = .TRUE. 
-            FirstBubblesRelease = .TRUE. 
-            BubblesAtSurface    = .FALSE.
-        END IF
-        CEMAMFT_RandC_RegN = 0
-        CEMA_SD_Vars = 0.d00
-        SDPFLUX=0.0
-        SDNH4FLUX=0.0
-        SDNO3FLUX=0.0
-    END IF
-    !
-    IF(IncludeBedConsolidation) THEN
-        BedElevationLayer = 0.d00
-        BedConsolidRate = 0.d00
-        PorewaterRelRate = 0.d00
-        CEMASedConc = 0.d00
-        CEMACumPWRelease = 0.d00
-        CEMACumPWReleaseRate = 0.d00
-        CEMACumPWToRelease = 0.d00
-        CEMACumPWReleased = 0.d00
-        EndBedConsolidation = .FALSE.
-        BedConsolidationSeg = .FALSE.  ! cb 6/28/18
-        VOLCEMA = 0.d00
-        NumCEMAPWInst = 0
-        ApplyCEMAPWRelease = .FALSE.
-    END IF
-    !
-    IF(IncludeCEMASedDiagenesis .and. (.not. IncludeBedConsolidation)) THEN
-        EndBedConsolidation = .FALSE.
-        PorewaterRelRate = 0.d00
-    END IF
-    IF(IncludeCEMASedDiagenesis .OR. IncludeBedConsolidation) BedElevation = BedElevationInit
-    !
-    IF(.NOT.RESTART_IN)THEN
-        CellArea=0.0
-        IF(IncludeCEMASedDiagenesis) THEN
-            MFTSedFlxVars = 0.d00
-            BedPorosity = BedPorosityInit
-            IF(Bubbles_Calculation) THEN 
-                MFTBubbReleased = 0 
-                TConc = 0.d00; SConc = 0.d00
-                CrackOpen = .FALSE.; BubbleRelWB=0.0
-                GasReleaseCH4=0.0
-            END IF
-        END IF
-    ENDIF
+    
+        !IF (SedFlxFolder /= ' ' .OR. INDEX(SedFlxFolder, CHAR(0)) <= 0) THEN   ! change back to original directory
+        !    STATUS=CHANGEDRIVEQQ(MODDIR)
+        !    MODDIRtest = FILE$CURDRIVE 
+        !END IF  
+
+        RETURN
   END SUBROUTINE INIT_CEMA
     
   Subroutine Deallocate_CEMA
@@ -1320,8 +1376,8 @@
         IF(IncludeAlkalinity) DEALLOCATE(SDRegnALK_T)
         IF(.NOT. IncludeDynamicpH)  DEALLOCATE(SDRegnpH)
         DEALLOCATE(SDRegnTIC_T, SDRegnPO4_T)
-        IF(IncludeIron) DEALLOCATE(SDRegnFe2_T,SDRegnFeOOH_T, SD_Fe2, KdFe1, KdFe2)
-        IF(IncludeManganese) DEALLOCATE(SDRegnMn2_T,SDRegnMnO2_T, SD_Mn2, KdMn1, KdMn2)
+        IF(IncludeIron) DEALLOCATE(SDRegnFe2_T,SDRegnFeOOH_T, SD_Fe2)
+        IF(IncludeManganese) DEALLOCATE(SDRegnMn2_T,SDRegnMnO2_T, SD_Mn2)
         DEALLOCATE(SDRegnT_T)
         DEALLOCATE(SedBedInitRegSegSt, SedBedInitRegSegEn)
         DEALLOCATE(SDRegnPOC_L_Fr,          SDRegnPOC_R_Fr,         SDRegnPON_L_Fr)
@@ -1339,6 +1395,7 @@
         DEALLOCATE(SDRegn_Theta_POC_Ine,    SDRegn_CH4CompMethod,   SDRegn_POMResuspMethod)
         DEALLOCATE(SDRegn_Theta_POP_Lab,    SDRegn_Theta_POP_Ref,   SDRegn_Theta_POP_Ine)
         DEALLOCATE(Kdp2, KdNH31, KdNH32, KdH2S1, KdH2S2, delta_kpo41, DOcr)
+        DEALLOCATE(KdFe1, KdFe2, KdMn1, KdMn2)
         DEALLOCATE(PartMixVel,BurialVel,POCr,KsOxch)
         DEALLOCATE(SDRegn_MinRate_POP_Lab, SDRegn_MinRate_POP_Ref, SDRegn_MinRate_POP_Ine)
         DEALLOCATE(SedBedDiaRCRegSegSt, SedBedDiaRCRegSegEn)

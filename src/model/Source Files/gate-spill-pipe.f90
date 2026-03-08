@@ -101,6 +101,7 @@ SUBROUTINE GATE_FLOW
     END IF
    endif
   END DO
+  
 END SUBROUTINE GATE_FLOW
 
 !***********************************************************************************************************************************
@@ -165,13 +166,13 @@ END SUBROUTINE SPILLWAY_FLOW
 !***********************************************************************************************************************************
 
 SUBROUTINE PIPE_FLOW_INITIALIZE
-  USE GLOBAL; USE GEOMC; USE STRUCTURES; USE SCREENC, ONLY: NIT
+  USE GLOBAL; USE GEOMC; USE STRUCTURES; USE SCREENC, ONLY: NIT, JDAY; USE ENVIRPMOD, ONLY: CONE
   IMPLICIT NONE  
   REAL(R8) :: DTQ,DLTX,EL1,EL2,HIE,EPS,DCHECK,D1,D2,DTEST,VTOT,TOTT,DCRIT,DEPTHCRIT
   real(R8) :: upcl,dncl,d1sum,d2sum,EC                     ! cb 07/17/19
   integer  :: kup,kdn                      ! cb 07/17/19
 
-  INTEGER  :: JP,K     
+  INTEGER  :: JP,K,niter     
   CHARACTER*2 :: SSP,ADEBUG
   LOGICAL :: SteadyStatePipe
   SAVE
@@ -186,21 +187,22 @@ SUBROUTINE PIPE_FLOW_INITIALIZE
   SSP='0F'
   INQUIRE(FILE='steady-state-pipe.npt', EXIST=SteadyStatePipe)   ! file_exists will be TRUE if the file
   	IF(SteadyStatePipe) THEN
-    OPEN(1500,FILE='steady-state-pipe.npt',STATUS='OLD')
-      READ(1500,*)
-      READ(1500,*)SSP
+    OPEN(CONE,FILE='steady-state-pipe.npt',STATUS='OLD')
+      READ(CONE,*)
+      READ(CONE,*)SSP
       IF(SSP/='ON')SteadyStatePipe=.FALSE.
-      READ(1500,*)
-      READ(1500,*)EC
+      READ(CONE,*)
+      READ(CONE,*)EC
       IF(EC==0.0)EC=1.0   ! CALIBRATION PARAMETER DEFAULT VALUE FOR EC WHICH IS THE ENTRANCE LOSS COEFFICIENT KE
-      READ(1500,*)
-      READ(1500,*)ADEBUG
-      CLOSE(1500)
+      READ(CONE,*)
+      READ(CONE,*)ADEBUG
+      IF(ADEBUG=='ON')OPEN(9977,FILE='SS_Pipe_debug_output.csv',STATUS='UNKNOWN')
+      CLOSE(CONE)
 	ENDIF
 
 RETURN
 
-ENTRY PIPE_FLOW      !(NIT)
+ENTRY PIPE_FLOW      
   DTQ = DLT/10.0
   DO JP=1,NPI
     DIA   = WPI(JP)
@@ -261,43 +263,53 @@ ENTRY PIPE_FLOW      !(NIT)
       DTEST = EL1-UPIE
     END IF
     DCRIT = DEPTHCRIT(ABS(QOLD(JP)))
-    IF (DTEST <= DCRIT) THEN
-      IF (EL1 <= EL2) THEN
-        D1 = UPIE+DCRIT
-        D2 = EL2
-      ELSE
-        D1 = EL1
-        D2 = DNIE+DCRIT
-      END IF
-      VTOT = 0.0
-      TOTT = 0.0
-!110   CONTINUE
-!      IF (NIT /= 0) THEN
-!        DTQ = OMEGA*DLTX/VMAX(JP)
-!        IF (DTQ > (DLT-TOTT)) THEN
-!          DTQ = DLT-TOTT
-!        ELSE IF ((2.0*DTQ) > (DLT-TOTT)) THEN
-!          DTQ = (DLT-TOTT)*0.5
-!        END IF
-!      END IF
-!      CALL OPEN_CHANNEL (D1,D2,QPI(JP),JP,DTQ)
-!      DCRIT = DEPTHCRIT(ABS(QPI(JP)))
-!      IF (EL1 <= EL2) THEN
-!        D1 = UPIE+DCRIT
-!      ELSE
-!        D2 = DNIE+DCRIT
-!      END IF
-!      VTOT = VTOT+DTQ*QPI(JP)
-!      TOTT = DTQ+TOTT
-!      IF (TOTT < (DLT-EPS2)) GO TO 110
-!      QPI(JP) = VTOT/DLT
-!      GO TO 140
-    END IF
+    !IF (DTEST <= DCRIT) THEN
+    !  IF (EL1 <= EL2) THEN
+    !    D1 = UPIE+DCRIT
+    !    D2 = EL2
+    !  ELSE
+    !    D1 = EL1
+    !    D2 = DNIE+DCRIT
+    !  END IF
+    !  write(w2wrn,'(a,f10.3,a,f10.3,a,f10.3,a,f10.3,a,e12.4,a,f14.4)')'DTEST < DCRIT, JDAY:',jday,' el1=',el1,' el2=',el2,' d1=',d1,' d2=',d2,' dcrit=',dcrit,' QOLD(JP)=',qold(jp)
+    !  VTOT = 0.0
+    !  TOTT = 0.0
+    !  niter=0
+    !  110   CONTINUE
+    !  IF (NIT /= 0) THEN
+    !    DTQ = OMEGA*DLTX/VMAX(JP)
+    !    IF (DTQ > (DLT-TOTT)) THEN
+    !      DTQ = DLT-TOTT
+    !    ELSE IF ((2.0*DTQ) > (DLT-TOTT)) THEN
+    !      DTQ = (DLT-TOTT)*0.5
+    !    END IF
+    !  END IF
+    !  CALL OPEN_CHANNEL (D1,D2,QPI(JP),JP,DTQ)
+    !  DCRIT = DEPTHCRIT(ABS(QPI(JP)))
+    !  IF (EL1 <= EL2) THEN
+    !    D1 = UPIE+DCRIT
+    !  ELSE
+    !    D2 = DNIE+DCRIT
+    !  END IF
+    !if(d1 /= d1)then
+    !    write(w2err,'(a,f10.3,a,f10.3,a,F10.3,A,f10.3,a,i5,a,i5,a,i5,A,E12.4)')'Pipe errorA: D1 or EL1 is NAN.,el1=',el1,' el2=',el2,' DCRIT=',DCRIT,' ELWS(IUPI(JP))=',ELWS(IUPI(JP)),' IUPI(JP)=',IUPI(JP),' JBDPI(JP)=',JBDPI(JP),' JP=',jp,' DLX(IUPI(JP))',DLX(IUPI(JP))
+    !endif
+    !  VTOT = VTOT+DTQ*QPI(JP)
+    !  TOTT = DTQ+TOTT;niter=niter+1
+    !  IF (TOTT < (DLT-EPS2) .and. niter < 20) GO TO 110
+    !  QPI(JP) = VTOT/DLT
+    !  GO TO 140
+    !END IF
     D1 = EL1
     D2 = EL2
 120 CONTINUE
     TOTT = 0.0
     VTOT = 0.0
+    niter=0
+    !if(d1 /= d1)then
+    !    write(wrn,'(a,f10.3,a,f10.3,a,f10.3,a,i5,a,i5,a,i5,A,E12.4)')'Pipe errorB: D1 or EL1 is NAN.,el1=',el1,' el2=',el2,' ELWS(IUPI(JP))=',ELWS(IUPI(JP)),' IUPI(JP)=',IUPI(JP),' JBDPI(JP)=',JBDPI(JP),' JP=',jp,' DLX(IUPI(JP)',DLX(IUPI(JP))
+    !endif
+    
 130 CONTINUE
         IF(SteadyStatePipe)THEN
 
@@ -437,7 +449,12 @@ ENTRY PIPE_FLOW      !(NIT)
 !499 CONTINUE        
     else
     IF (NIT /= 0) THEN
+      IF(VMAX(JP)==0.0)THEN
+          DTQ = DLT/10.
+      ELSE
       DTQ = OMEGA*DLTX/VMAX(JP)
+      ENDIF
+      
       IF (DTQ > (DLT-TOTT)) THEN
         DTQ = DLT-TOTT
       ELSE IF ((2.0*DTQ) > (DLT-TOTT)) THEN
@@ -447,7 +464,8 @@ ENTRY PIPE_FLOW      !(NIT)
     CALL OPEN_CHANNEL (D1,D2,QPI(JP),JP,DTQ)  
     VTOT = VTOT+DTQ*QPI(JP)
     TOTT = DTQ+TOTT
-    IF (TOTT < (DLT-EPS2)) GO TO 130
+    niter=niter+1
+    IF (TOTT < (DLT-EPS2) .and. niter < 20) GO TO 130   ! SW 9/30/2024 limit time in loop niter added
     QPI(JP) = VTOT/DLT
     end if     ! CB 8/2019
 140 CONTINUE
@@ -513,7 +531,6 @@ ENTRY OPEN_CHANNEL (EL1,EL2,QOUT,IC,DT)
   IF (BC1 <= 0.0) BC1 = EL1-UPIE
   BC2 = (EL2-BEPR2)*COS(PHI)
   IF (BC2 <= 0.0) BC2 = EL2-DNIE
-  !write(9977,'(a,f10.4,2(f10.5,2x),i6,5(f10.5,2x))')'Debug Pipe1:',JDAY,BEPR1,BEPR2,IC,BC1,BC2,DT,el1,el2
   IF (.NOT. BEGIN(IC)) THEN
     IF (WLFLAG(IC)) THEN
       DO J=2,NC-1,2
@@ -534,7 +551,6 @@ ENTRY OPEN_CHANNEL (EL1,EL2,QOUT,IC,DT)
     V(I)  = VS(I,IC)
     VT(I) = VST(I,IC)
   END DO
-   !write(9977,'(a,14(e14.5,2x))')'Debug Pipe2:',(v(i),i=1,7),(vt(i),i=1,7)
   IF (BEGIN(IC)) THEN
     BEGIN(IC) = .FALSE.
     DO J=2,NC-1,2
@@ -582,7 +598,6 @@ ENTRY OPEN_CHANNEL (EL1,EL2,QOUT,IC,DT)
   DO J=2,NC-1,2
     YPR(J) = Y(J)+DT*(Y(J)-YT(J))/DTP(IC)
   END DO
-  !write(9977,'(a,14(e13.5,2x))')'Debug Pipe3:',(vpr(i),i=1,7),(ypr(i),i=1,7)
 ! Matrix setup
 
   VTOT = 0.0
@@ -1289,7 +1304,7 @@ End Module Pipe
         end if       
         
 499     CONTINUE
-        IF(DEBUGP=='ON')write(9977,'(A,A,F10.2,A,F10.4,A,F10.4,A,F10.4)')AID,' FLOW:',QOUT,' JDAY:',JDAY,' HEAD:',HEAD,' HDIF:',HDIF
+        IF(DEBUGP=='ON')write(9977,'(A,A,F10.2,A,F10.4,A,F10.4,A,F10.4)')AID,', FLOW:,',QOUT,', JDAY:,',JDAY,', HEAD:,',HEAD,', HDIF:,',HDIF
         RETURN
 
 END SUBROUTINE SteadyStatePipeFLow
@@ -1474,7 +1489,7 @@ REAL (R8) function type6(HEAD)                 !HEAD
       !end
     ! ZBRENT2 
 REAL (R8) function zbrent2(func,BARG)     !(func,x1,x2,tol,barg,num)
-      USE STRUCTURES;USE Pipe;USE GLOBAL, ONLY:W2ERR  
+      USE STRUCTURES;USE Pipe;USE GLOBAL, ONLY:W2ERR; USE MAIN, ONLY: ERROR_OPEN  
       IMPLICIT NONE
       REAL(R8) :: F1,F2,FUNC,BA,B,FA,FB,FC,C,D,E,TOL1,XM,S,P,Q,R,BARG
       INTEGER :: I,ITER
@@ -1486,7 +1501,11 @@ REAL (R8) function zbrent2(func,BARG)     !(func,x1,x2,tol,barg,num)
 
       factor = 2.00
 
-      if(x1.eq.x2)WRITE(W2ERR,*) 'PIPE STEADY STATE ZBRENT2: X1=X2 you have to guess an initial range'
+      if(x1.eq.x2)THEN
+          WRITE(W2ERR,*) 'PIPE STEADY STATE ZBRENT2: X1=X2 you have to guess an initial range'
+          ERROR_OPEN=.TRUE. 
+      ENDIF
+      
       f1 = func(x1,barg)
       f2 = func(x2,barg)
 
@@ -1499,6 +1518,7 @@ REAL (R8) function zbrent2(func,BARG)     !(func,x1,x2,tol,barg,num)
            if(f1.lt.0.)go to 69
 25        continue
           WRITE(W2ERR,*) 'PIPE STEADY STATE: ZBRENT2: could not make t#func(x1) less than zero'
+          ERROR_OPEN=.TRUE. 
       end if
 69        continue
 
@@ -1512,6 +1532,7 @@ REAL (R8) function zbrent2(func,BARG)     !(func,x1,x2,tol,barg,num)
            if(f2.gt.0.)go to 89
 45        continue
           WRITE(W2ERR,*) 'PIPE STEADY STATE: ZBRENT2:could not make typef(x2) greater than zero'
+          ERROR_OPEN=.TRUE. 
       end if
 89        continue
 
@@ -1522,7 +1543,11 @@ REAL (R8) function zbrent2(func,BARG)     !(func,x1,x2,tol,barg,num)
       fa = func(ba,barg)
       fb = func(b,barg)
 
-      if(fb*fa.gt.0.)WRITE(W2ERR,*) 'PIPE STEADY STATE: ZBRENT2: root must be bracketed for zbrent2'
+      if(fb*fa.gt.0.)THEN
+          WRITE(W2ERR,*) 'PIPE STEADY STATE: ZBRENT2: root must be bracketed for zbrent2'
+          ERROR_OPEN=.TRUE. 
+      ENDIF
+      
       fc=fb
       do 11 iter=1,itmax
         if(fb*fc.gt.0.)then
@@ -1580,6 +1605,7 @@ REAL (R8) function zbrent2(func,BARG)     !(func,x1,x2,tol,barg,num)
         fb= func(b,barg)
 11    continue
       WRITE(W2ERR,*) 'PIPE STEADY STATE: zbrent2 exceeding maximum number of iterations'
+      ERROR_OPEN=.TRUE. 
       zbrent2=b
 22    continue
 

@@ -10,7 +10,7 @@ SUBROUTINE KINETICS
       CDWBC,KF_NH4_SR,KF_NH4_SD,KF_PO4_SR,KF_PO4_SD,NLDOM, NRDOM, NLPOM, NRPOM, NDGP, ORGC_CALC, CO2_DER, HCO3_DER, CO3_DER,  &
       CBODU_DER,TOTSS_DER,O2DG_DER,TURB_DER,SECCHI_DER, CHLA_DER, GAS_TRANSFER_UPDATE, NFEII, NFEOOH, NMNII, NMNO2
   USE ALGAE_TOXINS; USE MetFileRegion
-  Use CEMAVars
+  Use CEMAVars; USE AlgaeReduceGasTransfer
 
 ! Type declarations
   IMPLICIT NONE
@@ -65,6 +65,23 @@ SUBROUTINE KINETICS
   ALLOCATE (FE(KMX,IMX))       
   TICBOD=0.0; FE=0.0; FEMN_TEMP=1.0
   
+        INQUIRE(FILE='W2_AlgaeGasReduction.csv',EXIST=REDUCE_GAS_TRANSFER)     ! SW 8/2024
+        IF(REDUCE_GAS_TRANSFER)THEN
+        OPEN(2450,FILE='W2_AlgaeGasReduction.csv',STATUS='OLD')
+        ALLOCATE(I_ALG(NAL))   ! THIS IS 0 OR 1 IF TO INCLUDE IN TOTAL ALGAE
+        READ(2450,*)
+        READ(2450,*)ICHAR2,IOUTFREQ
+        IF(ICHAR2=='ON')THEN
+            READ(2450,*)
+            READ(2450,*)KHS_ALG,(I_ALG(N),N=1,NAL)
+            OPEN(ALGRED,FILE='AlgaeRedFactorOutput.csv',status='unknown')
+            WRITE(ALGRED,'(A,f8.3,a,<NAL>(a,i3,a,i3,a))')'JDAY,I,AlgSum(surface)gm-3,ReductionFactor, KHS=,',khs_alg,',Active algae groups(=1):,',('Group:',N,'(',i_alg(n),')',n=1,nal) 
+        ELSE
+            REDUCE_GAS_TRANSFER = .FALSE.
+        ENDIF
+        CLOSE(2450)
+        ENDIF
+
   !ZS=0.0    ! SW 1/29/2019
   !ZSR=0.0
   !ZOOP_SETTLING_EXIST=.FALSE.
@@ -269,6 +286,7 @@ ENTRY KINETIC_RATES
       ! Gas Transfer
       IF(GAS_TRANSFER_UPDATE)THEN
           CALL GAS_TRANSFER
+          IF(REDUCE_GAS_TRANSFER)CALL ReduceReaeration
       ENDIF
 
     DO K=KT,KB(I)
@@ -2641,7 +2659,8 @@ ENTRY LABILE_POM_C
 	      DO JZ = 1,NZP
           IF(TGRAZE(K,I,JZ) > 0.0)THEN
             LPZOOOUTC(K,I) = LPZOOOUTC(K,I) + ZOO(K,I,JZ)*(ZMT(K,I,JZ)+(ZMU(K,I,JZ)-(ZMU(K,I,JZ)*ZEFF(JZ))))*ZC(JZ)
-            IF(CAC(NLPOM) == '      ON')THEN
+            IF(.NOT.ORGC_CALC)THEN     ! SW 7/8/2024
+            !IF(CAC(NLPOM) == '      ON')THEN
               LPZOOINC(K,I) = LPZOOINC(K,I) + ZOO(K,I,JZ)*PREFP(JZ)*ZMU(K,I,JZ)*LPOM(K,I)/TGRAZE(K,I,JZ)*ZC(JZ)
             ELSE
               LPZOOINC(K,I) = LPZOOINC(K,I) + ZOO(K,I,JZ)*PREFP(JZ)*ZMU(K,I,JZ)*LPOMC(K,I)/ORGC(JW)/TGRAZE(K,I,JZ)*ZC(JZ)
@@ -3117,7 +3136,7 @@ ENTRY DERIVED_CONSTITUENTS
               TOTSS(K,I) = TOTSS(K,I)+ALG(K,I,JA)
               ENDIF
             END DO
-            TOTSS(K,I) = TOTSS(K,I)+TISS(K,I)+POM(K,I)
+            TOTSS(K,I) = TOTSS(K,I)+TISS(K,I)+POM(K,I)+FEOOH(K,I)+MNO2(K,I)    ! SW 1/29/2025 Added oxidized Fe and Mn to TSS calculation
           ENDIF
           IF(CDWBC(TURB_DER,JW)=='      ON')TURB(K,I)    = EXP(CoeffA_Turb(JW)*LOG(TOTSS(K,I)) + CoeffB_Turb(JW))
           IF(CDWBC(SECCHI_DER,JW)=='      ON')SECCHID(K,I) = SECC_PAR(JW)/GAMMA(K,I)        ! Secchi Disk

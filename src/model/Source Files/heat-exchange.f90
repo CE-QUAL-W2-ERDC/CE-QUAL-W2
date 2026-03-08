@@ -5,7 +5,7 @@
 
 SUBROUTINE HEAT_EXCHANGE
   USE GLOBAL; USE GDAYC; USE SURFHE; USE TVDC; USE SHADEC; USE PREC
-  USE MetFileRegion, ONLY: WB_MetRegions,I_MetRegions,Met_Regions
+  USE MetFileRegion     !, ONLY: WB_MetRegions,I_MetRegions,Met_Regions
   IMPLICIT NONE
 
 ! Type declaration
